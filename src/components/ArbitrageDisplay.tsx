@@ -7,6 +7,12 @@ import { toast } from "sonner";
 import { ethers } from "ethers";
 import { useState, useEffect } from "react";
 
+const POL_TOKEN_ADDRESS = "0x455E53CBB86018Ac2B8092FdCd39d8444aFFC3F6";
+const POL_ABI = [
+  "function balanceOf(address account) view returns (uint256)",
+  "function decimals() view returns (uint8)"
+];
+
 interface ArbitrageDisplayProps {
   tokenA: string;
   tokenB: string;
@@ -48,10 +54,31 @@ export const ArbitrageDisplay = ({
   onWithdraw,
   simulationResult
 }: ArbitrageDisplayProps) => {
-  const [maticBalance, setMaticBalance] = useState<string | null>(null);
-  const isOpportunityProfitable = simulationResult && estimatedProfit && estimatedProfit > 0;
+  const [polBalance, setPolBalance] = useState<string | null>(null);
 
-  // Get price for tokenA from prices object
+  const checkPolBalance = async () => {
+    if (window.ethereum) {
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const accounts = await provider.send("eth_accounts", []);
+        if (accounts.length > 0) {
+          const polContract = new ethers.Contract(POL_TOKEN_ADDRESS, POL_ABI, provider);
+          const balance = await polContract.balanceOf(accounts[0]);
+          const decimals = await polContract.decimals();
+          setPolBalance(ethers.formatUnits(balance, decimals));
+        }
+      } catch (error) {
+        console.error("Error checking POL balance:", error);
+      }
+    }
+  };
+
+  useEffect(() => {
+    checkPolBalance();
+    const interval = setInterval(checkPolBalance, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
   const getTokenPrice = (token: string) => {
     if (!prices || !prices[token] || prices[token].length === 0) return 0;
     return prices[token][prices[token].length - 1].price;
@@ -60,54 +87,16 @@ export const ArbitrageDisplay = ({
   const priceA = getTokenPrice(tokenA);
   const priceB = getTokenPrice(tokenB);
   
-  // Calculate price difference and percentage
   const priceDiff = Math.abs(priceA - priceB);
   const avgPrice = (priceA + priceB) / 2;
   const percentDiff = avgPrice > 0 ? (priceDiff / avgPrice) * 100 : 0;
 
-  // Calculate flashloan details
   const flashloanAmount = priceA * 50; // 50x leverage
   const flashloanFee = flashloanAmount * 0.0009; // 0.09% fee
   const gasCost = 0.01; // Estimated gas cost in MATIC
 
-  // Calculate expected profit
   const calculatedProfit = simulationResult?.expectedProfit || 
     (percentDiff > 0 ? (flashloanAmount * (percentDiff / 100)) - flashloanFee - (gasCost * getTokenPrice('MATIC')) : 0);
-
-  useEffect(() => {
-    const checkMaticBalance = async () => {
-      if (window.ethereum) {
-        try {
-          const provider = new ethers.BrowserProvider(window.ethereum);
-          const accounts = await provider.send("eth_accounts", []);
-          if (accounts.length > 0) {
-            const balance = await provider.getBalance(accounts[0]);
-            setMaticBalance(ethers.formatEther(balance));
-          }
-        } catch (error) {
-          console.error("Error checking MATIC balance:", error);
-        }
-      }
-    };
-
-    checkMaticBalance();
-    const interval = setInterval(checkMaticBalance, 10000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const checkRequirements = () => {
-    if (!window.ethereum) {
-      toast.error("MetaMask não está instalada");
-      return false;
-    }
-
-    if (!maticBalance || parseFloat(maticBalance) < 0.1) {
-      toast.error("Saldo de MATIC insuficiente para gas fees (mínimo 0.1 MATIC)");
-      return false;
-    }
-
-    return true;
-  };
 
   return (
     <div className="space-y-4">
@@ -130,7 +119,7 @@ export const ArbitrageDisplay = ({
                   <span>Buscando oportunidades...</span>
                 </div>
               )}
-              {estimatedProfit !== null && isOpportunityProfitable && (
+              {estimatedProfit !== null && (
                 <div className="flex items-center gap-1 text-green-500 bg-green-500/10 px-3 py-1 rounded-full">
                   <TrendingUp className="h-4 w-4" />
                   <span>+{estimatedProfit.toFixed(2)} USDC</span>
@@ -140,10 +129,10 @@ export const ArbitrageDisplay = ({
           </div>
           <CardDescription className="space-y-2">
             <div>Arbitragem automática entre pools (1x/min)</div>
-            {maticBalance && (
+            {polBalance && (
               <div className="flex items-center gap-2 text-sm">
                 <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                <span>Saldo MATIC: {parseFloat(maticBalance).toFixed(4)} MATIC</span>
+                <span>Saldo POL: {parseFloat(polBalance).toFixed(4)} POL</span>
               </div>
             )}
           </CardDescription>

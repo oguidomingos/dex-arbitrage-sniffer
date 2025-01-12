@@ -30,6 +30,11 @@ interface Transaction {
 }
 
 const ARBITRAGE_CONTRACT_ADDRESS = "0xd6B6C965aAC635B626f8fcF75785645ed6CbbDB5";
+const POL_TOKEN_ADDRESS = "0x455E53CBB86018Ac2B8092FdCd39d8444aFFC3F6";
+const POL_ABI = [
+  "function balanceOf(address account) view returns (uint256)",
+  "function decimals() view returns (uint8)"
+];
 
 export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: ArbitrageCardProps) => {
   const [isSimulating, setIsSimulating] = useState(false);
@@ -46,16 +51,19 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
   const simulationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isProcessingRef = useRef(false);
 
-  const checkContractBalance = async () => {
+  const checkPolBalance = async () => {
     if (!window.ethereum) return "0";
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
-      const balance = await provider.getBalance(ARBITRAGE_CONTRACT_ADDRESS);
-      const formattedBalance = ethers.formatEther(balance);
-      setContractBalance(formattedBalance);
-      return formattedBalance;
+      const accounts = await provider.send("eth_accounts", []);
+      if (accounts.length === 0) return "0";
+      
+      const polContract = new ethers.Contract(POL_TOKEN_ADDRESS, POL_ABI, provider);
+      const balance = await polContract.balanceOf(accounts[0]);
+      const decimals = await polContract.decimals();
+      return ethers.formatUnits(balance, decimals);
     } catch (error) {
-      console.error("Erro ao verificar saldo do contrato:", error);
+      console.error("Erro ao verificar saldo de POL:", error);
       return "0";
     }
   };
@@ -98,9 +106,9 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       return;
     }
 
-    const balance = await checkContractBalance();
-    if (parseFloat(balance) < 0.1) {
-      toast.error("Saldo do contrato insuficiente. Mínimo necessário: 0.1 MATIC");
+    const polBalance = await checkPolBalance();
+    if (parseFloat(polBalance) < 0.1) {
+      toast.error("Saldo de POL insuficiente. Mínimo necessário: 0.1 POL");
       return;
     }
 
@@ -273,9 +281,9 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
             return;
           }
 
-          const balance = await checkContractBalance();
-          if (parseFloat(balance) < 0.1) {
-            console.log("Saldo do contrato insuficiente para simulação");
+          const polBalance = await checkPolBalance();
+          if (parseFloat(polBalance) < 0.1) {
+            console.log("Saldo de POL insuficiente para simulação");
             return;
           }
 
