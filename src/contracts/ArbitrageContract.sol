@@ -5,18 +5,20 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@aave/core-v3/contracts/flashloan/base/FlashLoanSimpleReceiverBase.sol";
 import "@aave/core-v3/contracts/interfaces/IPoolAddressesProvider.sol";
+import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 
 contract ArbitrageContract is FlashLoanSimpleReceiverBase, Ownable {
-    address public dexA;
-    address public dexB;
+    address public dexARouter;
+    address public dexBRouter;
+    uint256 public constant FLASH_LOAN_FEE = 9; // 0.09% fee
     
     constructor(
         address _addressProvider,
-        address _dexA,
-        address _dexB
+        address _dexARouter,
+        address _dexBRouter
     ) FlashLoanSimpleReceiverBase(IPoolAddressesProvider(_addressProvider)) Ownable(msg.sender) {
-        dexA = _dexA;
-        dexB = _dexB;
+        dexARouter = _dexARouter;
+        dexBRouter = _dexBRouter;
     }
 
     function executeOperation(
@@ -29,50 +31,57 @@ contract ArbitrageContract is FlashLoanSimpleReceiverBase, Ownable {
         // Decode params
         (address tokenA, address tokenB) = abi.decode(params, (address, address));
         
-        // Execute swaps
-        uint256 amountReceived = executeArbitrage(tokenA, tokenB, amount);
+        // Approve DEX A to spend tokenA
+        IERC20(asset).approve(dexARouter, amount);
+        
+        // Execute first swap on DEX A
+        uint256 amountReceived = executeSwap(
+            dexARouter,
+            asset,
+            tokenB,
+            amount
+        );
+        
+        // Approve DEX B to spend tokenB
+        IERC20(tokenB).approve(dexBRouter, amountReceived);
+        
+        // Execute second swap on DEX B
+        uint256 finalAmount = executeSwap(
+            dexBRouter,
+            tokenB,
+            asset,
+            amountReceived
+        );
+        
+        // Verify profit
+        uint256 amountToRepay = amount + premium;
+        require(finalAmount >= amountToRepay, "Insufficient funds to repay flash loan");
         
         // Approve repayment
-        uint256 amountToRepay = amount + premium;
-        require(amountReceived >= amountToRepay, "Insufficient funds to repay flash loan");
-        
         IERC20(asset).approve(address(POOL), amountToRepay);
         
         return true;
     }
 
-    function executeArbitrage(
-        address tokenA,
-        address tokenB,
-        uint256 amount
-    ) internal returns (uint256) {
-        // Perform swaps on DEX A and DEX B
-        uint256 amountAfterFirstSwap = swapExactTokensForTokens(
-            dexA,
-            tokenA,
-            tokenB,
-            amount
-        );
-        
-        uint256 finalAmount = swapExactTokensForTokens(
-            dexB,
-            tokenB,
-            tokenA,
-            amountAfterFirstSwap
-        );
-        
-        return finalAmount;
-    }
-
-    function swapExactTokensForTokens(
-        address dex,
+    function executeSwap(
+        address router,
         address tokenIn,
         address tokenOut,
         uint256 amountIn
     ) internal returns (uint256) {
-        // Implementation will depend on the specific DEX interface
-        // This is a placeholder for the actual swap logic
-        return amountIn;
+        address[] memory path = new address[](2);
+        path[0] = tokenIn;
+        path[1] = tokenOut;
+        
+        uint256[] memory amounts = IUniswapV2Router02(router).swapExactTokensForTokens(
+            amountIn,
+            0, // Accept any amount of tokenOut
+            path,
+            address(this),
+            block.timestamp
+        );
+        
+        return amounts[1];
     }
 
     function requestFlashLoan(
@@ -87,6 +96,13 @@ contract ArbitrageContract is FlashLoanSimpleReceiverBase, Ownable {
 
     function withdraw(address token) external onlyOwner {
         uint256 balance = IERC20(token).balanceOf(address(this));
+        IERC20(token).transfer(owner(), balance);
+    }
+
+    // Emergency withdrawal function
+    function emergencyWithdraw(address token) external onlyOwner {
+        uint256 balance = IERC20(token).balanceOf(address(this));
+        require(balance > 0, "No balance to withdraw");
         IERC20(token).transfer(owner(), balance);
     }
 }
