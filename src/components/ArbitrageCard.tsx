@@ -1,11 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { simulateFlashloan } from "@/lib/flashloan";
+import { executeArbitrage, withdrawProfit } from "@/lib/contractInteraction";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { PriceChart } from "./PriceChart";
 import { useTokenPrices } from "@/hooks/useTokenPrices";
-import { ArrowRightLeft, Wallet } from "lucide-react";
+import { ArrowRightLeft, Wallet, RefreshCcw, PiggyBank } from "lucide-react";
+import { ethers } from "ethers";
 
 interface ArbitrageCardProps {
   tokenA: string;
@@ -17,6 +19,7 @@ interface ArbitrageCardProps {
 
 export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB }: ArbitrageCardProps) => {
   const [isSimulating, setIsSimulating] = useState(false);
+  const [isExecuting, setIsExecuting] = useState(false);
   const [simulationResult, setSimulationResult] = useState<any>(null);
   const prices = useTokenPrices([tokenA, tokenB]);
 
@@ -25,6 +28,11 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB }: ArbitrageC
       try {
         const result = await simulateFlashloan(1, tokenA, tokenB, dexA, dexB);
         setSimulationResult(result);
+        
+        // Auto-execute if profitable
+        if (result.expectedProfit > 0 && !isExecuting) {
+          handleExecuteArbitrage();
+        }
       } catch (error) {
         console.error("Erro ao atualizar simulação:", error);
       }
@@ -48,6 +56,48 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB }: ArbitrageC
     }
   };
 
+  const handleExecuteArbitrage = async () => {
+    if (!window.ethereum) {
+      toast.error("Por favor, instale a MetaMask");
+      return;
+    }
+
+    setIsExecuting(true);
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      
+      await executeArbitrage(
+        tokenA,
+        tokenB,
+        "1",
+        signer
+      );
+    } catch (error) {
+      console.error("Erro ao executar arbitragem:", error);
+      toast.error("Erro ao executar arbitragem");
+    } finally {
+      setIsExecuting(false);
+    }
+  };
+
+  const handleWithdrawProfit = async () => {
+    if (!window.ethereum) {
+      toast.error("Por favor, instale a MetaMask");
+      return;
+    }
+
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      
+      await withdrawProfit(tokenA, signer);
+    } catch (error) {
+      console.error("Erro ao retirar lucro:", error);
+      toast.error("Erro ao retirar lucro");
+    }
+  };
+
   return (
     <Card className="w-full bg-[#1A1F2C] border-2 border-polygon-purple/20 hover:border-polygon-purple/50 transition-all duration-300 shadow-lg hover:shadow-polygon-purple/20">
       <CardHeader className="space-y-1">
@@ -63,7 +113,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB }: ArbitrageC
           </div>
         </div>
         <CardDescription className="text-sm text-muted-foreground">
-          Arbitragem entre pools
+          Arbitragem automática entre pools
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -108,13 +158,21 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB }: ArbitrageC
           )}
         </div>
       </CardContent>
-      <CardFooter>
+      <CardFooter className="flex gap-2">
         <Button 
           onClick={handleSimulate}
           disabled={isSimulating}
-          className="w-full bg-polygon-purple hover:bg-polygon-purple/90 transition-colors"
+          className="flex-1 bg-polygon-purple hover:bg-polygon-purple/90 transition-colors"
         >
-          {isSimulating ? "Simulando..." : "Simular Flashloan"}
+          <RefreshCcw className="h-4 w-4 mr-2" />
+          {isSimulating ? "Simulando..." : "Simular"}
+        </Button>
+        <Button 
+          onClick={handleWithdrawProfit}
+          className="flex-1 bg-green-600 hover:bg-green-700 transition-colors"
+        >
+          <PiggyBank className="h-4 w-4 mr-2" />
+          Retirar Lucro
         </Button>
       </CardFooter>
     </Card>
