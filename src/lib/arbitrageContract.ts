@@ -1,12 +1,9 @@
 import { ethers } from 'ethers';
 import { toast } from 'sonner';
 
-// Endereços dos tokens na rede Polygon
-const USDC_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
-const MATIC_ADDRESS = "0x0000000000000000000000000000000000001010";
 const WETH_ADDRESS = "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619";
+const MATIC_ADDRESS = "0x0000000000000000000000000000000000001010";
 
-// Endereço do contrato de arbitragem na Polygon
 const ARBITRAGE_CONTRACT_ADDRESS = "0xd6B6C965aAC635B626f8fcF75785645ed6CbbDB5";
 
 const ARBITRAGE_ABI = [
@@ -27,8 +24,6 @@ const getTokenAddress = (token: string): string => {
       return MATIC_ADDRESS;
     case 'WETH':
       return WETH_ADDRESS;
-    case 'USDC':
-      return USDC_ADDRESS;
     default:
       if (ethers.isAddress(token)) {
         return token;
@@ -49,57 +44,6 @@ const getTokenDecimals = async (tokenAddress: string, signer: ethers.Signer): Pr
   }
 };
 
-const checkAndApproveToken = async (
-  tokenAddress: string,
-  signer: ethers.Signer,
-  amount: bigint
-): Promise<boolean> => {
-  try {
-    // MATIC nativo não precisa de aprovação
-    if (tokenAddress === MATIC_ADDRESS) return true;
-    
-    // Não aprova USDC se não for necessário
-    if (tokenAddress === USDC_ADDRESS) {
-      console.log('Pulando aprovação de USDC');
-      return true;
-    }
-    
-    const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
-    const signerAddress = await signer.getAddress();
-    
-    console.log('Verificando aprovação para:', {
-      token: tokenAddress,
-      owner: signerAddress,
-      spender: ARBITRAGE_CONTRACT_ADDRESS
-    });
-
-    const allowance = await tokenContract.allowance(signerAddress, ARBITRAGE_CONTRACT_ADDRESS);
-    
-    if (allowance >= amount) {
-      console.log('Aprovação já existente:', allowance.toString());
-      return true;
-    }
-
-    console.log('Solicitando aprovação para:', amount.toString());
-    const approveTx = await tokenContract.approve(
-      ARBITRAGE_CONTRACT_ADDRESS,
-      ethers.MaxUint256,
-      {
-        gasLimit: 100000n,
-        maxFeePerGas: ethers.parseUnits('50', 'gwei'),
-        maxPriorityFeePerGas: ethers.parseUnits('1.5', 'gwei')
-      }
-    );
-
-    await approveTx.wait(1);
-    console.log('Aprovação concluída');
-    return true;
-  } catch (error) {
-    console.error('Erro ao aprovar token:', error);
-    return false;
-  }
-};
-
 export const executeRealArbitrage = async (
   tokenA: string,
   tokenB: string,
@@ -107,6 +51,8 @@ export const executeRealArbitrage = async (
   signer: ethers.Signer
 ) => {
   try {
+    console.log('Iniciando execução da arbitragem com:', { tokenA, tokenB, amount });
+    
     const contract = new ethers.Contract(
       ARBITRAGE_CONTRACT_ADDRESS,
       ARBITRAGE_ABI,
@@ -120,25 +66,12 @@ export const executeRealArbitrage = async (
     const flashloanToken = WETH_ADDRESS;
     const decimals = await getTokenDecimals(flashloanToken, signer);
     const amountInWei = ethers.parseUnits(amount, decimals);
-    
-    // Verifica e aprova apenas WETH
-    const approvalNeeded = [flashloanToken];
-    
-    console.log('Tokens que precisam de aprovação:', approvalNeeded);
-    
-    for (const tokenAddress of approvalNeeded) {
-      const approved = await checkAndApproveToken(tokenAddress, signer, amountInWei);
-      if (!approved) {
-        throw new Error('Falha na aprovação dos tokens');
-      }
-    }
-    
-    console.log('Executing arbitrage with params:', {
+
+    console.log('Executando arbitragem com parâmetros:', {
       flashloanToken,
       tokenA: tokenAAddress,
       tokenB: tokenBAddress,
-      amount: amountInWei.toString(),
-      decimals
+      amount: amountInWei.toString()
     });
 
     const tx = await contract.requestFlashLoan(
@@ -147,12 +80,13 @@ export const executeRealArbitrage = async (
       tokenAAddress,
       tokenBAddress,
       { 
-        gasLimit: 200000n,
-        maxFeePerGas: ethers.parseUnits('50', 'gwei'),
-        maxPriorityFeePerGas: ethers.parseUnits('1.5', 'gwei')
+        gasLimit: 500000n,
+        maxFeePerGas: ethers.parseUnits('100', 'gwei'),
+        maxPriorityFeePerGas: ethers.parseUnits('2', 'gwei')
       }
     );
 
+    console.log('Transação enviada:', tx.hash);
     await tx.wait(1);
     return true;
   } catch (error) {
@@ -173,13 +107,15 @@ export const withdrawProfit = async (
     );
 
     const tokenAddress = getTokenAddress(token);
+    console.log('Iniciando retirada de lucro para token:', tokenAddress);
 
     const tx = await contract.withdrawProfit(tokenAddress, { 
-      gasLimit: 150000n,
-      maxFeePerGas: ethers.parseUnits('50', 'gwei'),
-      maxPriorityFeePerGas: ethers.parseUnits('1.5', 'gwei')
+      gasLimit: 200000n,
+      maxFeePerGas: ethers.parseUnits('100', 'gwei'),
+      maxPriorityFeePerGas: ethers.parseUnits('2', 'gwei')
     });
     
+    console.log('Transação de retirada enviada:', tx.hash);
     const receipt = await tx.wait();
     return receipt.hash;
   } catch (error) {
