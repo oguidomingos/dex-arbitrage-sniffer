@@ -2,6 +2,7 @@ import { ethers } from 'ethers';
 
 const QUICKSWAP_ROUTER = "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff";
 const SUSHISWAP_ROUTER = "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506";
+const WMATIC = "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270";
 
 const ROUTER_ABI = [
   "function getAmountsOut(uint amountIn, address[] memory path) view returns (uint[] memory amounts)"
@@ -30,16 +31,40 @@ export const connectWallet = async () => {
 
 export const getTokenPrice = async (tokenAddress: string): Promise<number> => {
   try {
+    if (tokenAddress.toLowerCase() === "MATIC".toLowerCase()) {
+      tokenAddress = WMATIC;
+    }
+
     const provider = getProvider();
     const quickswapRouter = new ethers.Contract(QUICKSWAP_ROUTER, ROUTER_ABI, provider);
     const sushiswapRouter = new ethers.Contract(SUSHISWAP_ROUTER, ROUTER_ABI, provider);
     
     const amountIn = ethers.parseUnits("1", 18);
-    const USDC = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"; // Polygon USDC
+    const USDC = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
 
-    const priceQuickswap = await getPriceFromDEX(quickswapRouter, tokenAddress, USDC, amountIn);
-    const priceSushiswap = await getPriceFromDEX(sushiswapRouter, tokenAddress, USDC, amountIn);
-    
+    let priceQuickswap = 0n;
+    let priceSushiswap = 0n;
+
+    try {
+      const amountsQuickswap = await quickswapRouter.getAmountsOut.staticCall(
+        amountIn,
+        [tokenAddress, USDC]
+      );
+      priceQuickswap = amountsQuickswap[1];
+    } catch (error) {
+      console.error('Error getting QuickSwap price:', error);
+    }
+
+    try {
+      const amountsSushiswap = await sushiswapRouter.getAmountsOut.staticCall(
+        amountIn,
+        [tokenAddress, USDC]
+      );
+      priceSushiswap = amountsSushiswap[1];
+    } catch (error) {
+      console.error('Error getting SushiSwap price:', error);
+    }
+
     const avgPrice = Number(ethers.formatUnits((priceQuickswap + priceSushiswap) / 2n, 6));
     
     console.log(`Preços obtidos para ${tokenAddress}:`, {
@@ -55,14 +80,14 @@ export const getTokenPrice = async (tokenAddress: string): Promise<number> => {
   }
 };
 
-const getPriceFromDEX = async (
+export const getPriceFromDEX = async (
   router: ethers.Contract,
   tokenIn: string,
   tokenOut: string,
   amountIn: bigint
 ): Promise<bigint> => {
   try {
-    const amounts = await router.getAmountsOut(amountIn, [tokenIn, tokenOut]);
+    const amounts = await router.getAmountsOut.staticCall(amountIn, [tokenIn, tokenOut]);
     return amounts[1];
   } catch (error) {
     console.error(`Error getting price from DEX:`, error);
@@ -89,6 +114,10 @@ export class PriceMonitor {
     expectedProfit: bigint;
     route: string[];
   }> {
+    if (tokenA.toLowerCase() === "MATIC".toLowerCase()) {
+      tokenA = WMATIC;
+    }
+
     const priceQuickswap = await getPriceFromDEX(
       this.quickswapRouter,
       tokenA,
