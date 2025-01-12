@@ -8,6 +8,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { OperationsHistory } from "@/components/operations/OperationsHistory";
 import { SimulationRecord } from "@/types/simulation";
+import { TestnetSetup } from "@/components/TestnetSetup";
 
 const Index = () => {
   const [connected, setConnected] = useState(false);
@@ -120,15 +121,18 @@ const Index = () => {
             </div>
 
             {activeSection === "opportunities" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {opportunities.map((opp, index) => (
-                  <ArbitrageCard 
-                    key={index} 
-                    {...opp} 
-                    isPaused={isPaused}
-                    onSimulationComplete={handleSimulationComplete}
-                  />
-                ))}
+              <div className="space-y-6">
+                <TestnetSetup />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {opportunities.map((opp, index) => (
+                    <ArbitrageCard 
+                      key={index} 
+                      {...opp} 
+                      isPaused={isPaused}
+                      onSimulationComplete={handleSimulationComplete}
+                    />
+                  ))}
+                </div>
               </div>
             )}
 
