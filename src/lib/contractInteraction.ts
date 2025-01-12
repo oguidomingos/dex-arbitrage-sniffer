@@ -56,9 +56,9 @@ export const executeArbitrage = async (
       tokenAAddress,
       tokenBAddress,
       { 
-        maxFeePerGas: maxFeePerGas.mul(2), // Dobra o gas fee máximo
-        maxPriorityFeePerGas: maxPriorityFeePerGas.mul(2), // Dobra a prioridade
-        gasLimit: 5000000, // Aumenta o limite de gás
+        maxFeePerGas: maxFeePerGas * 2n, // Usando operador * para BigInt
+        maxPriorityFeePerGas: maxPriorityFeePerGas * 2n, // Usando operador * para BigInt
+        gasLimit: 5000000n, // Aumenta o limite de gás
       }
     );
 
@@ -95,9 +95,9 @@ export const withdrawProfit = async (
     const maxFeePerGas = gasPrice?.maxFeePerGas ?? ethers.parseUnits('200', 'gwei');
 
     const tx = await contract.withdraw(tokenAddress, { 
-      maxFeePerGas: maxFeePerGas.mul(2),
-      maxPriorityFeePerGas: maxPriorityFeePerGas.mul(2),
-      gasLimit: 2000000,
+      maxFeePerGas: maxFeePerGas * 2n, // Usando operador * para BigInt
+      maxPriorityFeePerGas: maxPriorityFeePerGas * 2n, // Usando operador * para BigInt
+      gasLimit: 2000000n,
     });
     
     await tx.wait(1);
