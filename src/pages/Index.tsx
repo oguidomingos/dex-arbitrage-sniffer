@@ -7,18 +7,7 @@ import { Pause, Play } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { OperationsHistory } from "@/components/operations/OperationsHistory";
-
-export type SimulationRecord = {
-  id: string;
-  timestamp: number;
-  tokenA: string;
-  tokenB: string;
-  dexA: string;
-  dexB: string;
-  expectedProfit: number;
-  status: 'success' | 'failed';
-  error?: string;
-};
+import { SimulationRecord } from "@/types/simulation";
 
 const Index = () => {
   const [connected, setConnected] = useState(false);
@@ -91,7 +80,7 @@ const Index = () => {
       <div className="min-h-screen flex w-full bg-[#1A1F2C] bg-gradient-to-b from-[#221F26] to-[#1A1F2C]">
         <AppSidebar />
         <main className="flex-1 p-8">
-          <div className="container">
+          <div className="container max-w-[1600px]">
             <div className="flex justify-between items-center mb-8">
               <div className="flex items-center gap-4">
                 <SidebarTrigger />
@@ -131,7 +120,7 @@ const Index = () => {
             </div>
 
             {activeSection === "opportunities" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {opportunities.map((opp, index) => (
                   <ArbitrageCard 
                     key={index} 

@@ -8,6 +8,7 @@ import { SimulationDialog } from "./dialogs/SimulationDialog";
 import { ArbitrageDisplay } from "./ArbitrageDisplay";
 import { validateArbitrageParameters } from "@/lib/validation";
 import { OpportunityDialog } from "./dialogs/OpportunityDialog";
+import { SimulationRecord } from "@/types/simulation";
 
 interface ArbitrageCardProps {
   tokenA: string;

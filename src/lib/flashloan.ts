@@ -44,23 +44,28 @@ export const simulateFlashloan = async (
       [`${tokenB} em ${dexB}`]: priceBInDexB
     });
 
+    // Aumentar o valor inicial para ter mais impacto
+    const scaledInitialAmount = initialAmount * 1000; // Usar 1000 unidades do token
+
     // Simular rota 1: TokenA -> TokenB (DexA) -> TokenA (DexB)
-    const route1Step1Amount = initialAmount / priceAInDexA * priceBInDexA; // Quantidade de TokenB recebida
-    const route1FinalAmount = route1Step1Amount / priceBInDexB * priceAInDexB; // Quantidade final de TokenA
-    const route1Profit = route1FinalAmount - initialAmount;
+    const route1Step1Amount = scaledInitialAmount / priceAInDexA * priceBInDexA;
+    const route1FinalAmount = route1Step1Amount / priceBInDexB * priceAInDexB;
+    const route1Profit = route1FinalAmount - scaledInitialAmount;
 
     // Simular rota 2: TokenA -> TokenB (DexB) -> TokenA (DexA)
-    const route2Step1Amount = initialAmount / priceAInDexB * priceBInDexB; // Quantidade de TokenB recebida
-    const route2FinalAmount = route2Step1Amount / priceBInDexA * priceAInDexA; // Quantidade final de TokenA
-    const route2Profit = route2FinalAmount - initialAmount;
+    const route2Step1Amount = scaledInitialAmount / priceAInDexB * priceBInDexB;
+    const route2FinalAmount = route2Step1Amount / priceBInDexA * priceAInDexA;
+    const route2Profit = route2FinalAmount - scaledInitialAmount;
 
     console.log('Resultados das rotas:', {
       rota1: {
+        initialAmount: scaledInitialAmount,
         step1: route1Step1Amount,
         final: route1FinalAmount,
         profit: route1Profit
       },
       rota2: {
+        initialAmount: scaledInitialAmount,
         step1: route2Step1Amount,
         final: route2FinalAmount,
         profit: route2Profit
@@ -72,7 +77,7 @@ export const simulateFlashloan = async (
     const bestProfit = Math.max(route1Profit, route2Profit);
     
     // Calcular custos
-    const flashloanFee = initialAmount * 0.0009; // 0.09% fee
+    const flashloanFee = scaledInitialAmount * 0.0009; // 0.09% fee
     const gasCost = 0.01; // Custo estimado em MATIC
     const gasCostInToken = gasCost * priceAInDexA;
     
@@ -90,7 +95,7 @@ export const simulateFlashloan = async (
         route: bestRoute,
         profit: netProfit,
         details: {
-          initialAmount,
+          initialAmount: scaledInitialAmount,
           flashloanFee,
           gasCost: gasCostInToken,
           bestRoute,
@@ -102,12 +107,12 @@ export const simulateFlashloan = async (
     }
 
     return {
-      initialAmount,
-      flashloanAmount: initialAmount,
+      initialAmount: scaledInitialAmount,
+      flashloanAmount: scaledInitialAmount,
       expectedProfit: netProfit,
-      finalTokenAmount: initialAmount + netProfit,
+      finalTokenAmount: scaledInitialAmount + netProfit,
       dexRoute: bestRoute === 1 ? [dexA, dexB] : [dexB, dexA],
-      percentageDiff: (netProfit / initialAmount) * 100,
+      percentageDiff: (netProfit / scaledInitialAmount) * 100,
       priceA: bestRoute === 1 ? priceAInDexA : priceAInDexB,
       priceB: bestRoute === 1 ? priceBInDexA : priceBInDexB,
       priceDiff,
