@@ -36,7 +36,6 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
   const [simulationResult, setSimulationResult] = useState<any>(null);
   const [lastExecutionTime, setLastExecutionTime] = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [showOpportunityDialog, setShowOpportunityDialog] = useState(false);
   const [showSimulationDialog, setShowSimulationDialog] = useState(false);
   const [estimatedProfit, setEstimatedProfit] = useState<number | null>(null);
   const prices = useTokenPrices([tokenA, tokenB]);
@@ -67,10 +66,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
 
   useEffect(() => {
     const updateSimulation = async () => {
-      if (isPaused) {
-        console.log("Scanner está pausado");
-        return;
-      }
+      if (isPaused) return;
       
       const currentTime = Date.now();
       const oneMinute = 60000;
@@ -84,8 +80,13 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
         setSimulationResult(result);
         setEstimatedProfit(result.expectedProfit);
         
-        if (isOpportunityProfitable(result) && !isExecuting && !isPaused) {
+        if (isOpportunityProfitable(result) && !isExecuting) {
           addTransaction('simulation', 'success', undefined, undefined, result.expectedProfit);
+          
+          // Mostrar diálogo de simulação automaticamente
+          setShowSimulationDialog(true);
+          
+          // Notificação toast com botão de ação
           toast.success(`Oportunidade encontrada: ${tokenA}/${tokenB}`, {
             description: `Lucro esperado: ${result.expectedProfit.toFixed(2)} USDC`,
             action: {
@@ -94,12 +95,10 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
             },
             duration: 10000
           });
+          
           setLastExecutionTime(currentTime);
           
-          // Mostrar diálogo de simulação automaticamente
-          setShowSimulationDialog(true);
-          
-          // Após 10 segundos, fechar o diálogo se não houver interação
+          // Fechar diálogo após 10 segundos se não houver interação
           setTimeout(() => {
             setShowSimulationDialog(false);
           }, 10000);
@@ -111,6 +110,10 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       }
     };
 
+    // Executar a primeira vez imediatamente
+    updateSimulation();
+    
+    // Configurar o intervalo para executar a cada segundo
     const interval = setInterval(updateSimulation, 1000);
     return () => clearInterval(interval);
   }, [tokenA, tokenB, dexA, dexB, isPaused, lastExecutionTime, isExecuting]);
