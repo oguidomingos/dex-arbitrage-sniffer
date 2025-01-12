@@ -1,4 +1,5 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { ArrowRightLeft, DollarSign, TrendingUp } from "lucide-react";
 
 interface OpportunityDialogProps {
@@ -9,6 +10,7 @@ interface OpportunityDialogProps {
   dexA: string;
   dexB: string;
   expectedProfit?: number;
+  onProceed: () => void;
 }
 
 export const OpportunityDialog = ({
@@ -19,6 +21,7 @@ export const OpportunityDialog = ({
   dexA,
   dexB,
   expectedProfit,
+  onProceed,
 }: OpportunityDialogProps) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -55,6 +58,14 @@ export const OpportunityDialog = ({
             </div>
           </DialogDescription>
         </DialogHeader>
+        <DialogFooter>
+          <Button
+            onClick={onProceed}
+            className="w-full bg-polygon-purple hover:bg-polygon-purple/90"
+          >
+            Prosseguir com Simulação
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

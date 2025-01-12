@@ -4,7 +4,15 @@ import { LogDisplay } from "./LogDisplay";
 import { PriceChart } from "./PriceChart";
 
 interface TransactionHistoryProps {
-  transactions: any[];
+  transactions: Array<{
+    id: string;
+    timestamp: number;
+    type: 'execute' | 'withdraw' | 'simulation';
+    status: 'success' | 'failed';
+    amount?: string;
+    error?: string;
+    profitEstimate?: number;
+  }>;
   prices: any;
   tokenA: string;
   tokenB: string;

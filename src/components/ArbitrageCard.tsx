@@ -5,7 +5,7 @@ import { executeArbitrage, withdrawProfit } from "@/lib/contractInteraction";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useTokenPrices } from "@/hooks/useTokenPrices";
-import { ArrowRightLeft, Wallet, RefreshCcw, PiggyBank } from "lucide-react";
+import { ArrowRightLeft, Wallet, RefreshCcw, PiggyBank, TrendingUp } from "lucide-react";
 import { ethers } from "ethers";
 import { OpportunityDialog } from "./dialogs/OpportunityDialog";
 import { SimulationDialog } from "./dialogs/SimulationDialog";
@@ -23,10 +23,11 @@ interface ArbitrageCardProps {
 interface Transaction {
   id: string;
   timestamp: number;
-  type: 'execute' | 'withdraw';
+  type: 'execute' | 'withdraw' | 'simulation';
   status: 'success' | 'failed';
   amount?: string;
   error?: string;
+  profitEstimate?: number;
 }
 
 export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: ArbitrageCardProps) => {
@@ -37,6 +38,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [showOpportunityDialog, setShowOpportunityDialog] = useState(false);
   const [showSimulationDialog, setShowSimulationDialog] = useState(false);
+  const [estimatedProfit, setEstimatedProfit] = useState<number | null>(null);
   const prices = useTokenPrices([tokenA, tokenB]);
 
   useEffect(() => {
@@ -58,16 +60,19 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
         console.log("Iniciando simulação...", new Date().toLocaleTimeString());
         const result = await simulateFlashloan(1, tokenA, tokenB, dexA, dexB);
         setSimulationResult(result);
+        setEstimatedProfit(result.expectedProfit);
         
         if (result.expectedProfit > 0 && !isExecuting && !isPaused) {
-          console.log("Oportunidade lucrativa encontrada! Executando arbitragem...");
+          console.log("Oportunidade lucrativa encontrada!");
+          addTransaction('simulation', 'success', undefined, undefined, result.expectedProfit);
           setShowOpportunityDialog(true);
           setLastExecutionTime(currentTime);
         } else {
           console.log("Sem oportunidade lucrativa neste momento");
         }
       } catch (error) {
-        console.error("Erro detalhado na simulação:", error);
+        console.error("Erro na simulação:", error);
+        setEstimatedProfit(null);
       }
     };
 
@@ -75,14 +80,21 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
     return () => clearInterval(interval);
   }, [tokenA, tokenB, dexA, dexB, isPaused, lastExecutionTime, isExecuting]);
 
-  const addTransaction = (type: 'execute' | 'withdraw', status: 'success' | 'failed', amount?: string, error?: string) => {
+  const addTransaction = (
+    type: 'execute' | 'withdraw' | 'simulation',
+    status: 'success' | 'failed',
+    amount?: string,
+    error?: string,
+    profitEstimate?: number
+  ) => {
     const newTransaction: Transaction = {
       id: Math.random().toString(36).substr(2, 9),
       timestamp: Date.now(),
       type,
       status,
       amount,
-      error
+      error,
+      profitEstimate
     };
     setTransactions(prev => [newTransaction, ...prev]);
   };
@@ -166,6 +178,10 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
         dexA={dexA}
         dexB={dexB}
         expectedProfit={simulationResult?.expectedProfit}
+        onProceed={() => {
+          setShowOpportunityDialog(false);
+          setShowSimulationDialog(true);
+        }}
       />
 
       <SimulationDialog
@@ -183,10 +199,18 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
               <Wallet className="h-5 w-5" />
               {tokenA}/{tokenB}
             </CardTitle>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-black/20 px-3 py-1 rounded-full">
-              <span>{dexA}</span>
-              <ArrowRightLeft className="h-4 w-4 text-polygon-purple" />
-              <span>{dexB}</span>
+            <div className="flex items-center gap-2">
+              <div className="text-sm text-muted-foreground bg-black/20 px-3 py-1 rounded-full">
+                <span>{dexA}</span>
+                <ArrowRightLeft className="h-4 w-4 text-polygon-purple inline mx-2" />
+                <span>{dexB}</span>
+              </div>
+              {estimatedProfit !== null && estimatedProfit > 0 && (
+                <div className="flex items-center gap-1 text-green-500 bg-green-500/10 px-3 py-1 rounded-full">
+                  <TrendingUp className="h-4 w-4" />
+                  <span>+{estimatedProfit.toFixed(2)} USDC</span>
+                </div>
+              )}
             </div>
           </div>
           <CardDescription>
