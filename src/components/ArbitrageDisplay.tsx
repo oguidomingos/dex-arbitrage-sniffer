@@ -51,6 +51,29 @@ export const ArbitrageDisplay = ({
   const [maticBalance, setMaticBalance] = useState<string | null>(null);
   const isOpportunityProfitable = simulationResult && estimatedProfit && estimatedProfit > 0;
 
+  // Get price for tokenA from prices object
+  const getTokenPrice = (token: string) => {
+    if (!prices || !prices[token] || prices[token].length === 0) return 0;
+    return prices[token][prices[token].length - 1].price;
+  };
+
+  const priceA = getTokenPrice(tokenA);
+  const priceB = getTokenPrice(tokenB);
+  
+  // Calculate price difference and percentage
+  const priceDiff = Math.abs(priceA - priceB);
+  const avgPrice = (priceA + priceB) / 2;
+  const percentDiff = avgPrice > 0 ? (priceDiff / avgPrice) * 100 : 0;
+
+  // Calculate flashloan details
+  const flashloanAmount = priceA * 50; // 50x leverage
+  const flashloanFee = flashloanAmount * 0.0009; // 0.09% fee
+  const gasCost = 0.01; // Estimated gas cost in MATIC
+
+  // Calculate expected profit
+  const calculatedProfit = simulationResult?.expectedProfit || 
+    (percentDiff > 0 ? (flashloanAmount * (percentDiff / 100)) - flashloanFee - (gasCost * getTokenPrice('MATIC')) : 0);
+
   useEffect(() => {
     const checkMaticBalance = async () => {
       if (window.ethereum) {
@@ -125,14 +148,14 @@ export const ArbitrageDisplay = ({
             tokenB={tokenB}
             dexA={dexA}
             dexB={dexB}
-            priceA={simulationResult?.priceA}
-            priceB={simulationResult?.priceB}
-            priceDiff={simulationResult?.priceDiff}
-            percentDiff={simulationResult?.percentDiff}
-            flashloanAmount={simulationResult?.flashloanAmount}
-            flashloanFee={simulationResult?.flashloanFee}
-            gasCost={simulationResult?.gasCost}
-            expectedProfit={simulationResult?.expectedProfit}
+            priceA={priceA}
+            priceB={priceB}
+            priceDiff={priceDiff}
+            percentDiff={percentDiff}
+            flashloanAmount={flashloanAmount}
+            flashloanFee={flashloanFee}
+            gasCost={gasCost}
+            expectedProfit={calculatedProfit}
             isLoading={isSimulating}
           />
           <TransactionHistory 
