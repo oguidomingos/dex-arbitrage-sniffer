@@ -3,9 +3,11 @@ import { Button } from "@/components/ui/button";
 import { ArbitrageCard } from "@/components/ArbitrageCard";
 import { connectWallet, provider } from "@/lib/web3";
 import { toast } from "sonner";
+import { Pause, Play } from "lucide-react";
 
 const Index = () => {
   const [connected, setConnected] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [opportunities, setOpportunities] = useState([
     {
       tokenA: "MATIC",
@@ -31,6 +33,11 @@ const Index = () => {
     }
   };
 
+  const togglePause = () => {
+    setIsPaused(!isPaused);
+    toast.success(isPaused ? "Scanner resumed" : "Scanner paused");
+  };
+
   useEffect(() => {
     const checkConnection = async () => {
       if (window.ethereum) {
@@ -46,13 +53,32 @@ const Index = () => {
       <div className="container py-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-polygon-purple">Polygon Arbitrage Scanner</h1>
-          <Button
-            onClick={handleConnect}
-            variant={connected ? "secondary" : "default"}
-            className="bg-polygon-purple hover:bg-polygon-purple/90 text-white"
-          >
-            {connected ? "Connected" : "Connect Wallet"}
-          </Button>
+          <div className="flex gap-4">
+            <Button
+              onClick={togglePause}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              {isPaused ? (
+                <>
+                  <Play className="w-4 h-4" />
+                  Resume
+                </>
+              ) : (
+                <>
+                  <Pause className="w-4 h-4" />
+                  Pause
+                </>
+              )}
+            </Button>
+            <Button
+              onClick={handleConnect}
+              variant={connected ? "secondary" : "default"}
+              className="bg-polygon-purple hover:bg-polygon-purple/90 text-white"
+            >
+              {connected ? "Connected" : "Connect Wallet"}
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
