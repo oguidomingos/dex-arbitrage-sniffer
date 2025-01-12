@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TransactionList } from "./TransactionList";
 import { LogDisplay } from "./LogDisplay";
 import { PriceChart } from "./PriceChart";
+import { PoolStats } from "./PoolStats";
 
 interface TransactionHistoryProps {
   transactions: Array<{
@@ -17,6 +18,8 @@ interface TransactionHistoryProps {
   prices: any;
   tokenA: string;
   tokenB: string;
+  dexA: string;
+  dexB: string;
   showLogs?: boolean;
   onTxClick?: (txHash: string) => void;
 }
@@ -26,6 +29,8 @@ export const TransactionHistory = ({
   prices,
   tokenA,
   tokenB,
+  dexA,
+  dexB,
   showLogs = true,
   onTxClick
 }: TransactionHistoryProps) => {
@@ -37,6 +42,16 @@ export const TransactionHistory = ({
       <CardContent className="space-y-4">
         <TransactionList transactions={transactions} onTxClick={onTxClick} />
         {showLogs && <LogDisplay />}
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div>
+            <PoolStats dex={dexA} tokenA={tokenA} tokenB={tokenB} />
+          </div>
+          <div>
+            <PoolStats dex={dexB} tokenA={tokenA} tokenB={tokenB} />
+          </div>
+        </div>
+
         {prices[tokenA]?.length > 0 && (
           <div className="space-y-2">
             <h3 className="font-medium text-sm text-muted-foreground">{tokenA} Price</h3>

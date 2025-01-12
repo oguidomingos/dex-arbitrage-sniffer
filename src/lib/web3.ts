@@ -149,6 +149,82 @@ export const getPriceFromDEX = async (
   }
 };
 
+export const getPoolData = async (
+  dex: string,
+  tokenA: string,
+  tokenB: string
+): Promise<PoolStats> => {
+  try {
+    const provider = getProvider();
+    const routerAddress = dex.toLowerCase() === 'quickswap' ? QUICKSWAP_ROUTER : SUSHISWAP_ROUTER;
+    const router = new ethers.Contract(routerAddress, [
+      ...ROUTER_ABI,
+      "function factory() external view returns (address)",
+      "function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)"
+    ], provider);
+
+    // Get factory address
+    const factoryAddress = await router.factory();
+    const factoryContract = new ethers.Contract(factoryAddress, [
+      "function getPair(address tokenA, address tokenB) external view returns (address pair)",
+      "function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)"
+    ], provider);
+
+    // Get pair address
+    const pairAddress = await factoryContract.getPair(tokenA, tokenB);
+    
+    // Simulate volume data (in a real scenario, you'd fetch this from a subgraph or API)
+    const currentBlock = await provider.getBlockNumber();
+    const currentTimestamp = Math.floor(Date.now() / 1000);
+    
+    // Get historical data for different time periods
+    const volumeData = {
+      '10m': Math.random() * 100000, // Example volume in USD
+      '1h': Math.random() * 500000,
+      '6h': Math.random() * 2000000,
+      '24h': Math.random() * 5000000
+    };
+
+    // Get current reserves
+    const pairContract = new ethers.Contract(pairAddress, [
+      "function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)",
+      "function token0() external view returns (address)",
+      "function token1() external view returns (address)"
+    ], provider);
+
+    const reserves = await pairContract.getReserves();
+    const token0 = await pairContract.token0();
+    const token1 = await pairContract.token1();
+
+    // Calculate total liquidity in USD
+    const priceA = await getTokenPrice(tokenA);
+    const priceB = await getTokenPrice(tokenB);
+    
+    const reserve0 = Number(ethers.formatUnits(reserves[0], 18));
+    const reserve1 = Number(ethers.formatUnits(reserves[1], 18));
+    
+    const liquidity = (reserve0 * priceA) + (reserve1 * priceB);
+
+    return {
+      liquidity,
+      volume: volumeData,
+      lastUpdate: currentTimestamp
+    };
+  } catch (error) {
+    console.error('Error fetching pool data:', error);
+    return {
+      liquidity: 0,
+      volume: {
+        '10m': 0,
+        '1h': 0,
+        '6h': 0,
+        '24h': 0
+      },
+      lastUpdate: Math.floor(Date.now() / 1000)
+    };
+  }
+};
+
 export class PriceMonitor {
   private quickswapRouter: ethers.Contract;
   private sushiswapRouter: ethers.Contract;
