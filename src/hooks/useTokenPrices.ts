@@ -11,39 +11,44 @@ interface TokenPrices {
 }
 
 export const useTokenPrices = (tokens: string[]) => {
-  const [prices, setPrices] = useState<TokenPrices>({});
-
-  useEffect(() => {
+  const [prices, setPrices] = useState<TokenPrices>(() => {
     // Inicializa o objeto de preços para cada token
     const initialPrices: TokenPrices = {};
     tokens.forEach(token => {
       initialPrices[token] = [];
     });
-    setPrices(initialPrices);
+    return initialPrices;
+  });
 
+  useEffect(() => {
     const fetchPrices = async () => {
       try {
-        const newPrices: TokenPrices = { ...prices };
+        const newPrices: TokenPrices = {};
         
         for (const token of tokens) {
           const price = await getTokenPrice(token);
           const timestamp = Date.now();
           
           newPrices[token] = [
-            ...newPrices[token].slice(-30), // Mantém apenas os últimos 30 pontos
+            ...(prices[token]?.slice(-30) || []), // Mantém apenas os últimos 30 pontos
             { timestamp, price }
           ];
         }
         
-        setPrices(newPrices);
+        setPrices(prevPrices => ({
+          ...prevPrices,
+          ...newPrices
+        }));
       } catch (error) {
         console.error('Error fetching token prices:', error);
       }
     };
 
+    fetchPrices(); // Executa imediatamente na primeira vez
     const interval = setInterval(fetchPrices, 1000);
+    
     return () => clearInterval(interval);
-  }, [tokens]);
+  }, [tokens]); // Apenas tokens como dependência
 
   return prices;
 };
