@@ -38,14 +38,14 @@ const getTokenAddress = (token: string): string => {
 };
 
 const getTokenDecimals = async (tokenAddress: string, signer: ethers.Signer): Promise<number> => {
-  if (tokenAddress === MATIC_ADDRESS) return 18; // MATIC sempre tem 18 decimais
+  if (tokenAddress === MATIC_ADDRESS) return 18;
   
   const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
   try {
     return await tokenContract.decimals();
   } catch (error) {
     console.error('Erro ao obter decimais do token:', error);
-    return 18; // fallback para 18 decimais
+    return 18;
   }
 };
 
@@ -57,6 +57,12 @@ const checkAndApproveToken = async (
   try {
     // MATIC nativo não precisa de aprovação
     if (tokenAddress === MATIC_ADDRESS) return true;
+    
+    // Não aprova USDC se não for necessário
+    if (tokenAddress === USDC_ADDRESS) {
+      console.log('Pulando aprovação de USDC');
+      return true;
+    }
     
     const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
     const signerAddress = await signer.getAddress();
@@ -110,20 +116,13 @@ export const executeRealArbitrage = async (
     const tokenAAddress = getTokenAddress(tokenA);
     const tokenBAddress = getTokenAddress(tokenB);
     
-    // Sempre usa WETH para flashloan quando ele está envolvido na operação
-    const flashloanToken = tokenA === 'WETH' || tokenB === 'WETH' ? WETH_ADDRESS : tokenAAddress;
+    // Sempre usa WETH para flashloan
+    const flashloanToken = WETH_ADDRESS;
     const decimals = await getTokenDecimals(flashloanToken, signer);
     const amountInWei = ethers.parseUnits(amount, decimals);
     
-    // Verifica e aprova apenas os tokens ERC20 necessários
-    const approvalNeeded = [tokenAAddress, tokenBAddress].filter(
-      (address) => address !== MATIC_ADDRESS && address !== flashloanToken
-    );
-    
-    // Adiciona o flashloanToken à lista se não for MATIC
-    if (flashloanToken !== MATIC_ADDRESS) {
-      approvalNeeded.push(flashloanToken);
-    }
+    // Verifica e aprova apenas WETH
+    const approvalNeeded = [flashloanToken];
     
     console.log('Tokens que precisam de aprovação:', approvalNeeded);
     
