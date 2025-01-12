@@ -1,11 +1,11 @@
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ArrowRightLeft, Wallet, RefreshCcw, PiggyBank, TrendingUp, AlertCircle, Search } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { ArbitrageHeader } from "./arbitrage/ArbitrageHeader";
+import { ArbitrageMetrics } from "./arbitrage/ArbitrageMetrics";
+import { ArbitrageActions } from "./arbitrage/ArbitrageActions";
 import { TransactionHistory } from "./TransactionHistory";
-import { ArbitrageDetails } from "./ArbitrageDetails";
-import { toast } from "sonner";
-import { ethers } from "ethers";
 import { useState, useEffect } from "react";
+import { ethers } from "ethers";
+import { toast } from "sonner";
 
 const POL_TOKEN_ADDRESS = "0x455E53CBB86018Ac2B8092FdCd39d8444aFFC3F6";
 const POL_ABI = [
@@ -49,7 +49,6 @@ export const ArbitrageDisplay = ({
   prices,
   estimatedProfit,
   isSimulating,
-  isExecuting,
   onSimulate,
   onWithdraw,
   simulationResult
@@ -109,9 +108,9 @@ export const ArbitrageDisplay = ({
   const avgPrice = (priceA + priceB) / 2;
   const percentDiff = avgPrice > 0 ? (priceDiff / avgPrice) * 100 : 0;
 
-  const flashloanAmount = priceA * 50; // 50x leverage
-  const flashloanFee = flashloanAmount * 0.0009; // 0.09% fee
-  const gasCost = 0.01; // Estimated gas cost in MATIC
+  const flashloanAmount = priceA * 50;
+  const flashloanFee = flashloanAmount * 0.0009;
+  const gasCost = 0.01;
 
   const calculatedProfit = simulationResult?.expectedProfit || 
     (percentDiff > 0 ? (flashloanAmount * (percentDiff / 100)) - flashloanFee - (gasCost * getTokenPrice('MATIC')) : 0);
@@ -119,44 +118,18 @@ export const ArbitrageDisplay = ({
   return (
     <div className="space-y-4">
       <Card className="w-full bg-[#1A1F2C] border-2 border-polygon-purple/20 hover:border-polygon-purple/50 transition-all duration-300 shadow-lg hover:shadow-polygon-purple/20">
-        <CardHeader className="space-y-1">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-xl font-bold text-polygon-purple flex items-center gap-2">
-              <Wallet className="h-5 w-5" />
-              {tokenA}/{tokenB}
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              <div className="text-sm text-muted-foreground bg-black/20 px-3 py-1 rounded-full">
-                <span>{dexA}</span>
-                <ArrowRightLeft className="h-4 w-4 text-polygon-purple inline mx-2" />
-                <span>{dexB}</span>
-              </div>
-              {!isPaused && !isSimulating && (
-                <div className="flex items-center gap-1 text-yellow-500 bg-yellow-500/10 px-3 py-1 rounded-full animate-pulse">
-                  <Search className="h-4 w-4" />
-                  <span>Buscando oportunidades...</span>
-                </div>
-              )}
-              {estimatedProfit !== null && (
-                <div className="flex items-center gap-1 text-green-500 bg-green-500/10 px-3 py-1 rounded-full">
-                  <TrendingUp className="h-4 w-4" />
-                  <span>+{estimatedProfit.toFixed(2)} USDC</span>
-                </div>
-              )}
-            </div>
-          </div>
-          <CardDescription className="space-y-2">
-            <div>Arbitragem automática entre pools (1x/min)</div>
-            {polBalance && (
-              <div className="flex items-center gap-2 text-sm">
-                <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                <span>Saldo POL: {parseFloat(polBalance).toFixed(4)} POL</span>
-              </div>
-            )}
-          </CardDescription>
-        </CardHeader>
+        <ArbitrageHeader
+          tokenA={tokenA}
+          tokenB={tokenB}
+          dexA={dexA}
+          dexB={dexB}
+          isPaused={isPaused}
+          isSimulating={isSimulating}
+          estimatedProfit={estimatedProfit}
+          polBalance={polBalance}
+        />
         <CardContent className="space-y-4">
-          <ArbitrageDetails
+          <ArbitrageMetrics
             tokenA={tokenA}
             tokenB={tokenB}
             dexA={dexA}
@@ -180,31 +153,20 @@ export const ArbitrageDisplay = ({
             onTxClick={(txHash) => window.open(`https://polygonscan.com/tx/${txHash}`, '_blank')}
           />
         </CardContent>
-        <CardFooter className="flex gap-2">
-          <Button 
-            onClick={() => {
-              if (checkRequirements()) {
-                onSimulate();
-              }
-            }}
-            disabled={isSimulating || isPaused}
-            className="flex-1 bg-polygon-purple hover:bg-polygon-purple/90 transition-colors"
-          >
-            <RefreshCcw className={`h-4 w-4 mr-2 ${isSimulating ? 'animate-spin' : ''}`} />
-            {isSimulating ? "Simulando..." : "Simular"}
-          </Button>
-          <Button 
-            onClick={() => {
-              if (checkRequirements()) {
-                onWithdraw();
-              }
-            }}
-            className="flex-1 bg-green-600 hover:bg-green-700 transition-colors"
-          >
-            <PiggyBank className="h-4 w-4 mr-2" />
-            Retirar Lucro
-          </Button>
-        </CardFooter>
+        <ArbitrageActions
+          isSimulating={isSimulating}
+          isPaused={isPaused}
+          onSimulate={async () => {
+            if (await checkRequirements()) {
+              onSimulate();
+            }
+          }}
+          onWithdraw={async () => {
+            if (await checkRequirements()) {
+              onWithdraw();
+            }
+          }}
+        />
       </Card>
     </div>
   );
