@@ -42,14 +42,13 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
   const prices = useTokenPrices([tokenA, tokenB]);
 
   const isOpportunityProfitable = (result: any) => {
-    // Considerando custos de gas e slippage
-    const gasEstimate = 0.01; // Estimativa de custo de gas em ETH
-    const slippagePercentage = 0.005; // 0.5% de slippage
+    const gasEstimate = 0.01;
+    const slippagePercentage = 0.005;
     
     if (!result || !result.expectedProfit) return false;
     
     const slippageCost = result.initialAmount * slippagePercentage;
-    const minimumProfitThreshold = 0.02; // 2% de lucro mínimo
+    const minimumProfitThreshold = 0.02;
     
     const netProfit = result.expectedProfit - slippageCost - gasEstimate;
     const profitPercentage = (netProfit / result.initialAmount) * 100;
@@ -77,23 +76,33 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       const oneMinute = 60000;
       
       if (currentTime - lastExecutionTime < oneMinute) {
-        console.log("Aguardando tempo mínimo entre execuções...");
         return;
       }
       
       try {
-        console.log("Iniciando simulação...", new Date().toLocaleTimeString());
         const result = await simulateFlashloan(1, tokenA, tokenB, dexA, dexB);
         setSimulationResult(result);
         setEstimatedProfit(result.expectedProfit);
         
         if (isOpportunityProfitable(result) && !isExecuting && !isPaused) {
-          console.log("Oportunidade lucrativa encontrada!");
           addTransaction('simulation', 'success', undefined, undefined, result.expectedProfit);
-          setShowOpportunityDialog(true);
+          toast.success(`Oportunidade encontrada: ${tokenA}/${tokenB}`, {
+            description: `Lucro esperado: ${result.expectedProfit.toFixed(2)} USDC`,
+            action: {
+              label: "Executar",
+              onClick: () => handleExecuteArbitrage()
+            },
+            duration: 10000
+          });
           setLastExecutionTime(currentTime);
-        } else {
-          console.log("Sem oportunidade lucrativa neste momento - Custos muito altos ou lucro insuficiente");
+          
+          // Mostrar diálogo de simulação automaticamente
+          setShowSimulationDialog(true);
+          
+          // Após 10 segundos, fechar o diálogo se não houver interação
+          setTimeout(() => {
+            setShowSimulationDialog(false);
+          }, 10000);
         }
       } catch (error) {
         console.error("Erro na simulação:", error);
@@ -201,20 +210,6 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
 
   return (
     <>
-      <OpportunityDialog
-        open={showOpportunityDialog}
-        onOpenChange={setShowOpportunityDialog}
-        tokenA={tokenA}
-        tokenB={tokenB}
-        dexA={dexA}
-        dexB={dexB}
-        expectedProfit={simulationResult?.expectedProfit}
-        onProceed={() => {
-          setShowOpportunityDialog(false);
-          setShowSimulationDialog(true);
-        }}
-      />
-
       <SimulationDialog
         open={showSimulationDialog}
         onOpenChange={setShowSimulationDialog}
@@ -254,6 +249,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
             prices={prices}
             tokenA={tokenA}
             tokenB={tokenB}
+            showLogs={false}
           />
         </CardContent>
         <CardFooter className="flex gap-2">

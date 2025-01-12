@@ -16,6 +16,7 @@ interface TransactionHistoryProps {
   prices: any;
   tokenA: string;
   tokenB: string;
+  showLogs?: boolean;
 }
 
 export const TransactionHistory = ({
@@ -23,6 +24,7 @@ export const TransactionHistory = ({
   prices,
   tokenA,
   tokenB,
+  showLogs = true,
 }: TransactionHistoryProps) => {
   return (
     <Card className="w-full bg-[#1A1F2C] border-2 border-polygon-purple/20">
@@ -31,7 +33,7 @@ export const TransactionHistory = ({
       </CardHeader>
       <CardContent className="space-y-4">
         <TransactionList transactions={transactions} />
-        <LogDisplay />
+        {showLogs && <LogDisplay />}
         {prices[tokenA]?.length > 0 && (
           <div className="space-y-2">
             <h3 className="font-medium text-sm text-muted-foreground">{tokenA} Price</h3>
