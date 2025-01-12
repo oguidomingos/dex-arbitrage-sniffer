@@ -33,14 +33,12 @@ export const connectWallet = async () => {
 
 export const getTokenPrice = async (tokenAddress: string): Promise<number> => {
   try {
-    // Mapeia os símbolos dos tokens para seus endereços
     const tokenAddressMap: { [key: string]: string } = {
       'MATIC': WMATIC,
       'WETH': WETH,
       'USDC': USDC
     };
 
-    // Se for passado um símbolo, converte para o endereço correspondente
     const actualTokenAddress = tokenAddressMap[tokenAddress] || tokenAddress;
     
     const provider = getProvider();
@@ -50,13 +48,11 @@ export const getTokenPrice = async (tokenAddress: string): Promise<number> => {
     const amountIn = ethers.parseUnits("1", 18);
     let path: string[];
     
-    // Se o token for USDC, inverte o path para obter o preço correto
     if (actualTokenAddress === USDC) {
       path = [WMATIC, USDC];
       const amountsQuickswap = await quickswapRouter.getAmountsOut.staticCall(amountIn, path);
       const amountsSushiswap = await sushiswapRouter.getAmountsOut.staticCall(amountIn, path);
       
-      // Calcula o preço inverso para USDC
       const priceQuickswap = 1 / Number(ethers.formatUnits(amountsQuickswap[1], 6));
       const priceSushiswap = 1 / Number(ethers.formatUnits(amountsSushiswap[1], 6));
       
@@ -100,6 +96,40 @@ export const getTokenPrice = async (tokenAddress: string): Promise<number> => {
     }
   } catch (error) {
     console.error('Error fetching token prices:', error);
+    return 0;
+  }
+};
+
+export const getTokenPriceFromDEX = async (
+  tokenAddress: string,
+  dex: string
+): Promise<number> => {
+  try {
+    const tokenAddressMap: { [key: string]: string } = {
+      'MATIC': WMATIC,
+      'WETH': WETH,
+      'USDC': USDC
+    };
+
+    const actualTokenAddress = tokenAddressMap[tokenAddress] || tokenAddress;
+    const provider = getProvider();
+    const routerAddress = dex.toLowerCase() === 'quickswap' ? QUICKSWAP_ROUTER : SUSHISWAP_ROUTER;
+    const router = new ethers.Contract(routerAddress, ROUTER_ABI, provider);
+    
+    const amountIn = ethers.parseUnits("1", 18);
+    let path: string[];
+    
+    if (actualTokenAddress === USDC) {
+      path = [WMATIC, USDC];
+      const amounts = await router.getAmountsOut.staticCall(amountIn, path);
+      return 1 / Number(ethers.formatUnits(amounts[1], 6));
+    } else {
+      path = [actualTokenAddress, USDC];
+      const amounts = await router.getAmountsOut.staticCall(amountIn, path);
+      return Number(ethers.formatUnits(amounts[1], 6));
+    }
+  } catch (error) {
+    console.error(`Error getting ${dex} price:`, error);
     return 0;
   }
 };

@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
 import { toast } from 'sonner';
-import { getTokenPrice } from './web3';
+import { getTokenPriceFromDEX } from './web3';
 
 export const simulateFlashloan = async (
   initialAmount: number,
@@ -13,10 +13,10 @@ export const simulateFlashloan = async (
     console.log('Iniciando simulação para:', { tokenA, tokenB, dexA, dexB });
     
     // Obter preços dos tokens em ambas DEXs
-    const priceADexA = await getTokenPrice(tokenA, dexA);
-    const priceBDexA = await getTokenPrice(tokenB, dexA);
-    const priceADexB = await getTokenPrice(tokenA, dexB);
-    const priceBDexB = await getTokenPrice(tokenB, dexB);
+    const priceADexA = await getTokenPriceFromDEX(tokenA, dexA);
+    const priceBDexA = await getTokenPriceFromDEX(tokenB, dexA);
+    const priceADexB = await getTokenPriceFromDEX(tokenA, dexB);
+    const priceBDexB = await getTokenPriceFromDEX(tokenB, dexB);
     
     console.log('Preços obtidos:', { 
       priceADexA, priceBDexA, 
@@ -43,7 +43,7 @@ export const simulateFlashloan = async (
     const flashloanAmount = initialAmount;
     const flashloanFee = flashloanAmount * 0.0009; // 0.09% fee
     const gasCost = 0.01; // Custo estimado em MATIC
-    const gasCostInToken = gasCost * (await getTokenPrice('MATIC', dexA));
+    const gasCostInToken = gasCost * priceADexA;
     
     // Calcular lucro líquido
     const netProfit = bestProfit - flashloanFee - gasCostInToken;
