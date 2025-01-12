@@ -23,6 +23,12 @@ const PROVIDER_SWITCH_COOLDOWN = 2000; // 2 seconds cooldown
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000; // 2 seconds delay between retries
 
+// Initialize providers
+const alchemyProvider = new ethers.AlchemyProvider(
+  'matic',
+  alchemySettings.apiKey
+);
+
 const createProvider = (url: string) => {
   return new ethers.JsonRpcProvider(url, {
     chainId: 137,
@@ -30,14 +36,8 @@ const createProvider = (url: string) => {
   });
 };
 
-// Initialize providers with Alchemy as primary and others as backup
-const alchemyProvider = new ethers.AlchemyProvider(
-  'matic',
-  alchemySettings.apiKey
-);
-
 let backupProviders = BACKUP_RPC_PROVIDERS.map(url => createProvider(url));
-let currentProvider = alchemyProvider;
+let currentProvider: ethers.Provider = alchemyProvider;
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -137,20 +137,12 @@ export const connectWallet = async () => {
   }
 };
 
-// Preços base atualizados para refletir valores mais realistas
-const basePrice: { [key: string]: number } = {
-  'MATIC': 0.85,
-  'USDC': 1.0,
-  'WETH': 2500,
-  'USDT': 1.0,
-};
-
 // Cache para armazenar o último preço gerado para cada token
 const lastPrices: { [key: string]: number } = {};
 
 export const getTokenPrice = async (tokenAddress: string) => {
   if (!lastPrices[tokenAddress]) {
-    lastPrices[tokenAddress] = basePrice[tokenAddress] || 1.0;
+    lastPrices[tokenAddress] = 1.0;
   }
 
   // Gera uma variação mais significativa (±2%)
