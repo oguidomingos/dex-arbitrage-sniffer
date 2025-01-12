@@ -9,7 +9,8 @@ interface ArbitrageHeaderProps {
   isPaused: boolean;
   isSimulating: boolean;
   estimatedProfit: number | null;
-  polBalance: string | null;
+  walletBalance: string | null;
+  walletAddress: string | null;
 }
 
 export const ArbitrageHeader = ({
@@ -20,7 +21,8 @@ export const ArbitrageHeader = ({
   isPaused,
   isSimulating,
   estimatedProfit,
-  polBalance,
+  walletBalance,
+  walletAddress,
 }: ArbitrageHeaderProps) => {
   return (
     <CardHeader className="space-y-4">
@@ -56,13 +58,22 @@ export const ArbitrageHeader = ({
         )}
       </div>
 
-      {/* Third Row - Description and Balance */}
+      {/* Third Row - Wallet Info */}
       <CardDescription className="space-y-2">
         <div className="text-sm">Arbitragem automática entre pools (1x/min)</div>
-        {polBalance && (
-          <div className="flex items-center gap-2 text-sm bg-black/10 px-3 py-1.5 rounded-full w-fit">
-            <Wallet className="h-4 w-4 text-muted-foreground" />
-            <span>Saldo POL: {parseFloat(polBalance).toFixed(4)} POL</span>
+        {walletAddress && (
+          <div className="flex flex-col gap-2 bg-black/10 p-3 rounded-lg">
+            <div className="flex items-center gap-2 text-sm">
+              <Wallet className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">
+                {`${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`}
+              </span>
+            </div>
+            {walletBalance && (
+              <div className="text-sm text-muted-foreground">
+                Saldo: {parseFloat(walletBalance).toFixed(4)} MATIC
+              </div>
+            )}
           </div>
         )}
       </CardDescription>

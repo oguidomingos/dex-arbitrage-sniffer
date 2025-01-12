@@ -9,12 +9,6 @@ import { ethers } from "ethers";
 import { toast } from "sonner";
 import { PriceChart } from "./PriceChart";
 
-const POL_TOKEN_ADDRESS = "0x455E53CBB86018Ac2B8092FdCd39d8444aFFC3F6";
-const POL_ABI = [
-  "function balanceOf(address account) view returns (uint256)",
-  "function decimals() view returns (uint8)"
-];
-
 interface ArbitrageDisplayProps {
   tokenA: string;
   tokenB: string;
@@ -56,30 +50,9 @@ export const ArbitrageDisplay = ({
   onWithdraw,
   simulationResult
 }: ArbitrageDisplayProps) => {
-  const [polBalance, setPolBalance] = useState<string | null>(null);
   const [selectedView, setSelectedView] = useState<'metrics' | 'chart' | 'history'>('metrics');
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [walletBalance, setWalletBalance] = useState<string | null>(null);
-
-  const checkPolBalance = async () => {
-    if (window.ethereum) {
-      try {
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const accounts = await provider.send("eth_accounts", []);
-        if (accounts.length > 0) {
-          const polContract = new ethers.Contract(POL_TOKEN_ADDRESS, POL_ABI, provider);
-          const balance = await polContract.balanceOf(accounts[0]);
-          const decimals = await polContract.decimals();
-          const formattedBalance = ethers.formatUnits(balance, decimals);
-          setPolBalance(formattedBalance);
-          return formattedBalance;
-        }
-      } catch (error) {
-        console.error("Error checking POL balance:", error);
-      }
-    }
-    return "0";
-  };
 
   const checkWalletDetails = async () => {
     if (window.ethereum) {
@@ -103,9 +76,19 @@ export const ArbitrageDisplay = ({
       return false;
     }
 
-    const balance = await checkPolBalance();
-    if (parseFloat(balance) < 0.1) {
-      toast.error("Saldo de POL insuficiente. Mínimo necessário: 0.1 POL");
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const accounts = await provider.send("eth_accounts", []);
+    
+    if (accounts.length === 0) {
+      toast.error("Por favor, conecte sua carteira MetaMask");
+      return false;
+    }
+
+    const balance = await provider.getBalance(accounts[0]);
+    const maticBalance = parseFloat(ethers.formatEther(balance));
+    
+    if (maticBalance < 0.1) {
+      toast.error("Saldo de MATIC insuficiente. Mínimo necessário: 0.1 MATIC");
       return false;
     }
 
@@ -113,10 +96,8 @@ export const ArbitrageDisplay = ({
   };
 
   useEffect(() => {
-    checkPolBalance();
     checkWalletDetails();
     const interval = setInterval(() => {
-      checkPolBalance();
       checkWalletDetails();
     }, 10000);
     return () => clearInterval(interval);
@@ -152,26 +133,11 @@ export const ArbitrageDisplay = ({
           isPaused={isPaused}
           isSimulating={isSimulating}
           estimatedProfit={estimatedProfit}
-          polBalance={polBalance}
+          walletBalance={walletBalance}
+          walletAddress={walletAddress}
         />
         
         <CardContent className="space-y-6 p-6">
-          {/* Wallet Info */}
-          <div className="bg-black/20 p-4 rounded-lg space-y-2">
-            <h3 className="text-sm font-medium text-muted-foreground">Carteira Conectada</h3>
-            <div className="flex flex-col gap-2">
-              <p className="text-sm">
-                Endereço: {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Não conectado'}
-              </p>
-              <p className="text-sm">
-                Saldo: {walletBalance ? `${Number(walletBalance).toFixed(4)} MATIC` : '0 MATIC'}
-              </p>
-              <p className="text-sm">
-                POL: {polBalance ? `${Number(polBalance).toFixed(4)} POL` : '0 POL'}
-              </p>
-            </div>
-          </div>
-
           {/* View Selection */}
           <div className="flex gap-2">
             <Button
