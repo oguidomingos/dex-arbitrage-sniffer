@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 
 // Array of RPC providers for redundancy
 const RPC_PROVIDERS = [
-  `https://polygon-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY || 'eR0aPlWHb-7fYj7M25rCKh_XKTZZlQEY'}`,
+  `https://polygon-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY || 'eR0aPlWHb-7fYj7M25rCKh_XKTZZlQEY'}`,
   'https://polygon-rpc.com',
   'https://rpc-mainnet.matic.network',
   'https://rpc-mainnet.maticvigil.com'
@@ -16,10 +16,7 @@ const PROVIDER_SWITCH_COOLDOWN = 1000; // 1 second cooldown
 const createProvider = (url: string) => {
   return new ethers.JsonRpcProvider(url, {
     chainId: 137, // Polygon mainnet
-    name: 'polygon',
-    polling: true,
-    pollingInterval: 4000,
-    batchMaxCount: 1, // Limit batch requests
+    name: 'polygon'
   });
 };
 
