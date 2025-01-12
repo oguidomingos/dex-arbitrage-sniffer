@@ -65,8 +65,8 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB }: ArbitrageC
         <div className="space-y-2">
           {simulationResult && (
             <div className="mt-4 space-y-2 text-sm">
-              <p>Entrada Inicial: {simulationResult.initialAmount} USDC</p>
-              <p>Valor do Flashloan: {simulationResult.flashloanAmount} USDC</p>
+              <p>Quantidade Inicial: {simulationResult.initialAmount} {tokenA}</p>
+              <p>Quantidade após Swap: {simulationResult.swapAmount} {tokenB}</p>
               <p>Lucro Esperado: {simulationResult.expectedProfit.toFixed(2)} USDC</p>
               <p className="text-xs text-muted-foreground">
                 *Incluindo taxas do flashloan e slippage
