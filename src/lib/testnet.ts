@@ -9,19 +9,18 @@ export const TESTNET_ADDRESSES = {
   WETH: "0x3C68CE8504087f89c640D02d133646d98e64ddd9"       // Mumbai WETH
 };
 
-// Mumbai network configuration com RPCs públicos estáveis
+// Mumbai network configuration com dados oficiais da Polygon
 const MUMBAI_NETWORK = {
   chainId: '0x13881', // 80001 in hex
-  chainName: 'Polygon Mumbai',
+  chainName: 'Mumbai',
   nativeCurrency: {
     name: 'MATIC',
     symbol: 'MATIC',
     decimals: 18
   },
   rpcUrls: [
-    'https://rpc.ankr.com/polygon_mumbai',
-    'https://matic-mumbai.chainstacklabs.com',
-    'https://rpc-mumbai.maticvigil.com'
+    'https://polygon-mumbai-bor.publicnode.com',
+    'https://polygon-testnet.public.blastapi.io'
   ],
   blockExplorerUrls: ['https://mumbai.polygonscan.com/']
 };
@@ -33,7 +32,6 @@ export const validateTestnetSetup = async () => {
       return false;
     }
 
-    // Solicita acesso à carteira
     try {
       await window.ethereum.request({ method: 'eth_requestAccounts' });
     } catch (error: any) {
@@ -45,72 +43,24 @@ export const validateTestnetSetup = async () => {
       return false;
     }
 
-    // Verifica se está na rede Mumbai
     const provider = new ethers.BrowserProvider(window.ethereum);
     const network = await provider.getNetwork();
     
     if (network.chainId !== 80001n) {
-      toast.loading("Alterando para rede Mumbai...", { duration: 2000 });
+      console.log("Dados para adicionar rede manualmente:", {
+        ...MUMBAI_NETWORK,
+        chainId: "80001 (0x13881)",
+        rpcUrls: MUMBAI_NETWORK.rpcUrls.join(" ou "),
+        blockExplorer: MUMBAI_NETWORK.blockExplorerUrls[0]
+      });
       
-      try {
-        // Primeiro tenta mudar para Mumbai
-        await window.ethereum.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: MUMBAI_NETWORK.chainId }],
-        });
-      } catch (switchError: any) {
-        // Se a rede não existe, tenta adicionar
-        if (switchError.code === 4902) {
-          try {
-            await window.ethereum.request({
-              method: 'wallet_addEthereumChain',
-              params: [MUMBAI_NETWORK],
-            });
-            
-            // Aguarda 2 segundos para a rede ser adicionada
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            
-            // Tenta conectar novamente
-            await window.ethereum.request({
-              method: 'wallet_switchEthereumChain',
-              params: [{ chainId: MUMBAI_NETWORK.chainId }],
-            });
-            
-            toast.success("Rede Mumbai adicionada com sucesso");
-          } catch (addError: any) {
-            console.error('Erro ao adicionar rede:', addError);
-            toast.error("Não foi possível adicionar a rede Mumbai. Por favor, adicione manualmente usando os seguintes dados:", {
-              duration: 10000,
-            });
-            console.log("Dados para adicionar rede manualmente:", MUMBAI_NETWORK);
-            return false;
-          }
-        } else {
-          console.error('Erro ao mudar rede:', switchError);
-          toast.error("Erro ao mudar para rede Mumbai. Tente adicionar manualmente.");
-          return false;
-        }
-      }
-
-      // Aguarda mais um pouco e verifica novamente
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      try {
-        const updatedProvider = new ethers.BrowserProvider(window.ethereum);
-        const updatedNetwork = await updatedProvider.getNetwork();
-        if (updatedNetwork.chainId !== 80001n) {
-          toast.error("Não foi possível conectar à rede Mumbai. Tente adicionar manualmente usando os dados no console.");
-          console.log("Dados para adicionar rede manualmente:", MUMBAI_NETWORK);
-          return false;
-        }
-      } catch (error) {
-        console.error('Erro ao verificar rede:', error);
-        toast.error("Erro ao verificar a conexão com a rede. Tente novamente.");
-        return false;
-      }
+      toast.error("Por favor, adicione a rede Mumbai manualmente no MetaMask usando os dados mostrados no console", {
+        duration: 10000
+      });
+      
+      return false;
     }
 
-    // Verifica saldo de MATIC
     const signer = await provider.getSigner();
     const balance = await provider.getBalance(signer.address);
     
