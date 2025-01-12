@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { PriceChart } from "./PriceChart";
 import { useTokenPrices } from "@/hooks/useTokenPrices";
+import { ArrowRightLeft, Wallet } from "lucide-react";
 
 interface ArbitrageCardProps {
   tokenA: string;
@@ -29,12 +30,8 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB }: ArbitrageC
       }
     };
 
-    // Executa a atualização imediatamente
     updateSimulation();
-    
-    // Configura o intervalo para atualizar a cada segundo
     const interval = setInterval(updateSimulation, 1000);
-    
     return () => clearInterval(interval);
   }, [tokenA, tokenB, dexA, dexB]);
 
@@ -52,38 +49,58 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB }: ArbitrageC
   };
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="text-lg font-bold">
-          {tokenA}/{tokenB}
-        </CardTitle>
-        <CardDescription>
-          Via {dexA} → {dexB}
+    <Card className="w-full bg-gradient-to-br from-background to-muted/50 border-2 hover:border-polygon-purple/50 transition-all duration-300">
+      <CardHeader className="space-y-1">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-xl font-bold text-polygon-purple flex items-center gap-2">
+            <Wallet className="h-5 w-5" />
+            {tokenA}/{tokenB}
+          </CardTitle>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span>{dexA}</span>
+            <ArrowRightLeft className="h-4 w-4 text-polygon-purple" />
+            <span>{dexB}</span>
+          </div>
+        </div>
+        <CardDescription className="text-sm text-muted-foreground">
+          Arbitragem entre pools
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-2">
+        <div className="space-y-4">
           {simulationResult && (
-            <div className="mt-4 space-y-2 text-sm">
-              <p>Entrada Inicial: {simulationResult.initialAmount} USDC</p>
-              <p>Valor do Flashloan: {simulationResult.flashloanAmount} USDC</p>
-              <p>Lucro Esperado: {simulationResult.expectedProfit.toFixed(2)} USDC</p>
-              <p className="text-xs text-muted-foreground">
-                *Incluindo taxas do flashloan e slippage
-              </p>
+            <div className="space-y-3">
+              <div className="bg-muted/50 p-4 rounded-lg space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Entrada</span>
+                  <span className="font-medium">{simulationResult.initialAmount} USDC</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Quantidade Final Esperada</span>
+                  <span className="font-medium text-polygon-purple">
+                    {(simulationResult.initialAmount + simulationResult.expectedProfit).toFixed(2)} USDC
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Lucro Esperado</span>
+                  <span className="font-medium text-green-500">
+                    +{simulationResult.expectedProfit.toFixed(2)} USDC
+                  </span>
+                </div>
+              </div>
             </div>
           )}
           {prices[tokenA]?.length > 0 && (
-            <>
-              <h3 className="font-semibold mt-4">{tokenA} Price</h3>
+            <div className="space-y-2">
+              <h3 className="font-medium text-sm text-muted-foreground">{tokenA} Price</h3>
               <PriceChart data={prices[tokenA]} token={tokenA} />
-            </>
+            </div>
           )}
           {prices[tokenB]?.length > 0 && (
-            <>
-              <h3 className="font-semibold mt-4">{tokenB} Price</h3>
+            <div className="space-y-2">
+              <h3 className="font-medium text-sm text-muted-foreground">{tokenB} Price</h3>
               <PriceChart data={prices[tokenB]} token={tokenB} />
-            </>
+            </div>
           )}
         </div>
       </CardContent>
@@ -91,7 +108,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB }: ArbitrageC
         <Button 
           onClick={handleSimulate}
           disabled={isSimulating}
-          className="w-full bg-polygon-purple hover:bg-polygon-purple/90"
+          className="w-full bg-polygon-purple hover:bg-polygon-purple/90 transition-colors"
         >
           {isSimulating ? "Simulando..." : "Simular Flashloan"}
         </Button>

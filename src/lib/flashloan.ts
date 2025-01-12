@@ -25,6 +25,7 @@ export const simulateFlashloan = async (
       initialAmount,
       flashloanAmount,
       expectedProfit: profit,
+      finalTokenAmount: finalAmount,
       dexRoute: [dexA, dexB]
     };
   } catch (error) {
@@ -37,5 +38,6 @@ interface SimulationResult {
   initialAmount: number;
   flashloanAmount: number;
   expectedProfit: number;
+  finalTokenAmount: number;
   dexRoute: string[];
 }
