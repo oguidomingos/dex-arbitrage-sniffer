@@ -1,24 +1,20 @@
 import { ethers } from 'ethers';
 import { toast } from 'sonner';
+import { Network, Alchemy } from "alchemy-sdk";
 
-// Array of RPC providers for redundancy with different weights
-const RPC_PROVIDERS = [
-  {
-    url: `https://polygon-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY || 'GassGtbTckoQXWh_D48Ksf25xTqXJdJU'}`,
-    weight: 1, // Lower weight for Alchemy due to rate limits
-  },
-  {
-    url: 'https://polygon-rpc.com',
-    weight: 3,
-  },
-  {
-    url: 'https://rpc-mainnet.matic.network',
-    weight: 3,
-  },
-  {
-    url: 'https://rpc-mainnet.maticvigil.com',
-    weight: 3,
-  }
+// Initialize Alchemy SDK
+const alchemySettings = {
+  apiKey: import.meta.env.VITE_ALCHEMY_API_KEY || 'GassGtbTckoQXWh_D48Ksf25xTqXJdJU',
+  network: Network.MATIC_MAINNET,
+};
+
+const alchemy = new Alchemy(alchemySettings);
+
+// Array of backup RPC providers
+const BACKUP_RPC_PROVIDERS = [
+  'https://polygon-rpc.com',
+  'https://rpc-mainnet.matic.network',
+  'https://rpc-mainnet.maticvigil.com'
 ];
 
 let currentProviderIndex = 0;
@@ -26,12 +22,6 @@ let lastProviderSwitch = Date.now();
 const PROVIDER_SWITCH_COOLDOWN = 2000; // 2 seconds cooldown
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000; // 2 seconds delay between retries
-const RATE_LIMIT_CODES = [429, -32005]; // Common rate limit error codes
-
-// Create weighted provider list
-const weightedProviders = RPC_PROVIDERS.flatMap(provider => 
-  Array(provider.weight).fill(provider.url)
-);
 
 const createProvider = (url: string) => {
   return new ethers.JsonRpcProvider(url, {
@@ -40,9 +30,14 @@ const createProvider = (url: string) => {
   });
 };
 
-// Initialize providers with weighted distribution
-let providers = weightedProviders.map(url => createProvider(url));
-let currentProvider = providers[0];
+// Initialize providers with Alchemy as primary and others as backup
+const alchemyProvider = new ethers.AlchemyProvider(
+  'matic',
+  alchemySettings.apiKey
+);
+
+let backupProviders = BACKUP_RPC_PROVIDERS.map(url => createProvider(url));
+let currentProvider = alchemyProvider;
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -52,28 +47,25 @@ const getNextProvider = async () => {
     await delay(PROVIDER_SWITCH_COOLDOWN - (now - lastProviderSwitch));
   }
 
-  currentProviderIndex = (currentProviderIndex + 1) % providers.length;
+  currentProviderIndex = (currentProviderIndex + 1) % backupProviders.length;
   lastProviderSwitch = Date.now();
-  currentProvider = providers[currentProviderIndex];
-  console.log(`Switching to RPC provider ${currentProviderIndex + 1}/${providers.length}`);
+  currentProvider = backupProviders[currentProviderIndex];
+  console.log(`Switching to backup RPC provider ${currentProviderIndex + 1}/${backupProviders.length}`);
   return currentProvider;
 };
 
 const isRateLimitError = (error: any): boolean => {
   if (!error) return false;
   
-  // Check for specific rate limit error codes
-  if (error.code && RATE_LIMIT_CODES.includes(error.code)) return true;
+  if (error.code && [429, -32005].includes(error.code)) return true;
   
-  // Check error message for rate limit indicators
   if (error.message && (
-    error.message.includes('rate limit') ||
-    error.message.includes('too many requests') ||
-    error.message.includes('exceeded') ||
-    error.message.includes('throttled')
+    error.message.toLowerCase().includes('rate limit') ||
+    error.message.toLowerCase().includes('too many requests') ||
+    error.message.toLowerCase().includes('exceeded') ||
+    error.message.toLowerCase().includes('throttled')
   )) return true;
   
-  // Check HTTP status code
   if (error.status === 429) return true;
   
   return false;
@@ -88,6 +80,18 @@ export const provider = new Proxy({} as ethers.Provider, {
       return async (...args: any[]) => {
         let lastError;
         
+        // First try with Alchemy SDK for specific methods that it supports
+        if (prop === 'getBlock' || prop === 'getBalance' || prop === 'getTransactionCount') {
+          try {
+            // @ts-ignore - Alchemy SDK types are different but compatible
+            const result = await alchemy.core[prop](...args);
+            return result;
+          } catch (error) {
+            console.warn('Alchemy SDK failed, falling back to providers:', error);
+          }
+        }
+        
+        // Fall back to regular providers if Alchemy SDK doesn't support the method or failed
         for (let retry = 0; retry < MAX_RETRIES; retry++) {
           try {
             const result = await value.apply(provider, args);
@@ -97,13 +101,12 @@ export const provider = new Proxy({} as ethers.Provider, {
             console.error(`Provider error (attempt ${retry + 1}/${MAX_RETRIES}):`, error);
             
             if (isRateLimitError(error)) {
-              console.log(`Rate limit hit on provider ${currentProviderIndex + 1}, switching...`);
+              console.log('Rate limit hit, switching providers...');
               currentProvider = await getNextProvider();
               await delay(RETRY_DELAY);
               continue;
             }
             
-            // For non-rate-limit errors, throw immediately
             throw error;
           }
         }
