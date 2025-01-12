@@ -29,6 +29,8 @@ interface Transaction {
   txHash?: string;
 }
 
+const ARBITRAGE_CONTRACT_ADDRESS = "0xd6B6C965aAC635B626f8fcF75785645ed6CbbDB5";
+
 export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: ArbitrageCardProps) => {
   const [isSimulating, setIsSimulating] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
@@ -39,25 +41,23 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
   const [showOpportunityDialog, setShowOpportunityDialog] = useState(false);
   const [estimatedProfit, setEstimatedProfit] = useState<number | null>(null);
   const [gasEstimate, setGasEstimate] = useState<string | null>(null);
+  const [contractBalance, setContractBalance] = useState<string>("0");
   const prices = useTokenPrices([tokenA, tokenB]);
   const simulationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isProcessingRef = useRef(false);
 
-  const checkMaticBalance = async () => {
-    if (!window.ethereum) return;
+  const checkContractBalance = async () => {
+    if (!window.ethereum) return "0";
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
-      const accounts = await provider.send("eth_accounts", []);
-      if (accounts.length > 0) {
-        const balance = await provider.getBalance(accounts[0]);
-        const formattedBalance = ethers.formatEther(balance);
-        setMaticBalance(formattedBalance);
-        return formattedBalance;
-      }
+      const balance = await provider.getBalance(ARBITRAGE_CONTRACT_ADDRESS);
+      const formattedBalance = ethers.formatEther(balance);
+      setContractBalance(formattedBalance);
+      return formattedBalance;
     } catch (error) {
-      console.error("Erro ao verificar saldo de MATIC:", error);
+      console.error("Erro ao verificar saldo do contrato:", error);
+      return "0";
     }
-    return "0";
   };
 
   const isOpportunityProfitable = (result: any): boolean => {
@@ -98,9 +98,9 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       return;
     }
 
-    const balance = await checkMaticBalance();
+    const balance = await checkContractBalance();
     if (parseFloat(balance) < 0.1) {
-      toast.error("Saldo de MATIC insuficiente. Mínimo necessário: 0.1 MATIC");
+      toast.error("Saldo do contrato insuficiente. Mínimo necessário: 0.1 MATIC");
       return;
     }
 
@@ -119,6 +119,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
 
       addTransaction('execute', 'pending');
 
+      // Aguarda a aprovação do MetaMask antes de prosseguir
       const success = await executeRealArbitrage(
         tokenA,
         tokenB,
@@ -198,9 +199,9 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       return;
     }
 
-    const balance = await checkMaticBalance();
+    const balance = await checkContractBalance();
     if (parseFloat(balance) < 0.1) {
-      toast.error("Saldo de MATIC insuficiente. Mínimo necessário: 0.1 MATIC");
+      toast.error("Saldo do contrato insuficiente. Mínimo necessário: 0.1 MATIC");
       return;
     }
     
@@ -241,8 +242,8 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
   };
 
   useEffect(() => {
-    checkMaticBalance();
-    const interval = setInterval(checkMaticBalance, 10000);
+    checkContractBalance();
+    const interval = setInterval(checkContractBalance, 10000);
     return () => clearInterval(interval);
   }, []);
 
