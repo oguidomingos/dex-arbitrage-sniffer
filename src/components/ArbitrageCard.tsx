@@ -49,14 +49,14 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB }: ArbitrageC
   };
 
   return (
-    <Card className="w-full bg-gradient-to-br from-background to-muted/50 border-2 hover:border-polygon-purple/50 transition-all duration-300">
+    <Card className="w-full bg-[#1A1F2C] border-2 border-polygon-purple/20 hover:border-polygon-purple/50 transition-all duration-300 shadow-lg hover:shadow-polygon-purple/20">
       <CardHeader className="space-y-1">
         <div className="flex items-center justify-between">
           <CardTitle className="text-xl font-bold text-polygon-purple flex items-center gap-2">
             <Wallet className="h-5 w-5" />
             {tokenA}/{tokenB}
           </CardTitle>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-black/20 px-3 py-1 rounded-full">
             <span>{dexA}</span>
             <ArrowRightLeft className="h-4 w-4 text-polygon-purple" />
             <span>{dexB}</span>
@@ -70,13 +70,13 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB }: ArbitrageC
         <div className="space-y-4">
           {simulationResult && (
             <div className="space-y-3">
-              <div className="bg-muted/50 p-4 rounded-lg space-y-2">
+              <div className="bg-black/20 p-4 rounded-lg space-y-2 backdrop-blur-sm">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Entrada</span>
-                  <span className="font-medium">{simulationResult.initialAmount} USDC</span>
+                  <span className="font-medium text-white">{simulationResult.initialAmount} USDC</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Quantidade Final Esperada</span>
+                  <span className="text-sm text-muted-foreground">Quantidade Final</span>
                   <span className="font-medium text-polygon-purple">
                     {(simulationResult.initialAmount + simulationResult.expectedProfit).toFixed(2)} USDC
                   </span>
@@ -93,13 +93,17 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB }: ArbitrageC
           {prices[tokenA]?.length > 0 && (
             <div className="space-y-2">
               <h3 className="font-medium text-sm text-muted-foreground">{tokenA} Price</h3>
-              <PriceChart data={prices[tokenA]} token={tokenA} />
+              <div className="bg-black/20 p-4 rounded-lg backdrop-blur-sm">
+                <PriceChart data={prices[tokenA]} token={tokenA} />
+              </div>
             </div>
           )}
           {prices[tokenB]?.length > 0 && (
             <div className="space-y-2">
               <h3 className="font-medium text-sm text-muted-foreground">{tokenB} Price</h3>
-              <PriceChart data={prices[tokenB]} token={tokenB} />
+              <div className="bg-black/20 p-4 rounded-lg backdrop-blur-sm">
+                <PriceChart data={prices[tokenB]} token={tokenB} />
+              </div>
             </div>
           )}
         </div>

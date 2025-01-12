@@ -42,14 +42,14 @@ const Index = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-polygon-purple/5 to-polygon-blue/5">
+    <div className="min-h-screen bg-[#1A1F2C] bg-gradient-to-b from-[#221F26] to-[#1A1F2C]">
       <div className="container py-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-polygon-purple">Polygon Arbitrage Scanner</h1>
           <Button
             onClick={handleConnect}
             variant={connected ? "secondary" : "default"}
-            className="bg-polygon-purple hover:bg-polygon-purple/90"
+            className="bg-polygon-purple hover:bg-polygon-purple/90 text-white"
           >
             {connected ? "Connected" : "Connect Wallet"}
           </Button>
