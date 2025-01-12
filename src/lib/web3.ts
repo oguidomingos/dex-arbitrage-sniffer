@@ -24,7 +24,16 @@ export const connectWallet = async () => {
   }
 };
 
+// Simula variações de preço para demonstração
+const basePrice: { [key: string]: number } = {
+  'MATIC': 1.5,
+  'USDC': 1.0,
+  'WETH': 3000,
+  'USDT': 1.0,
+};
+
 export const getTokenPrice = async (tokenAddress: string) => {
-  // Implement price fetching logic here
-  return 0;
+  const base = basePrice[tokenAddress] || 1.0;
+  const variation = (Math.random() - 0.5) * 0.02; // Variação de ±1%
+  return base * (1 + variation);
 };

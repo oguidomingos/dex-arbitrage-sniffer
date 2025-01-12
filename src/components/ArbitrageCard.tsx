@@ -3,6 +3,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { simulateFlashloan } from "@/lib/flashloan";
 import { useState } from "react";
 import { toast } from "sonner";
+import { PriceChart } from "./PriceChart";
+import { useTokenPrices } from "@/hooks/useTokenPrices";
 
 interface ArbitrageCardProps {
   tokenA: string;
@@ -15,6 +17,7 @@ interface ArbitrageCardProps {
 export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB }: ArbitrageCardProps) => {
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulationResult, setSimulationResult] = useState<any>(null);
+  const prices = useTokenPrices([tokenA, tokenB]);
 
   const handleSimulate = async () => {
     setIsSimulating(true);
@@ -51,6 +54,18 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB }: ArbitrageC
                 *Incluindo taxas do flashloan e slippage
               </p>
             </div>
+          )}
+          {prices[tokenA]?.length > 0 && (
+            <>
+              <h3 className="font-semibold mt-4">{tokenA} Price</h3>
+              <PriceChart data={prices[tokenA]} token={tokenA} />
+            </>
+          )}
+          {prices[tokenB]?.length > 0 && (
+            <>
+              <h3 className="font-semibold mt-4">{tokenB} Price</h3>
+              <PriceChart data={prices[tokenB]} token={tokenB} />
+            </>
           )}
         </div>
       </CardContent>
