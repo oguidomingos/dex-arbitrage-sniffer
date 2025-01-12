@@ -1,20 +1,20 @@
 import { ethers } from 'ethers';
 import { toast } from 'sonner';
-import { Network, Alchemy } from "alchemy-sdk";
-
-// Initialize Alchemy SDK
-const alchemySettings = {
-  apiKey: import.meta.env.VITE_ALCHEMY_API_KEY || 'GassGtbTckoQXWh_D48Ksf25xTqXJdJU',
-  network: Network.MATIC_MAINNET,
-};
-
-const alchemy = new Alchemy(alchemySettings);
 
 // Array of backup RPC providers
-const BACKUP_RPC_PROVIDERS = [
+const RPC_PROVIDERS = [
   'https://polygon-rpc.com',
   'https://rpc-mainnet.matic.network',
-  'https://rpc-mainnet.maticvigil.com'
+  'https://rpc-mainnet.maticvigil.com',
+  'https://polygon.llamarpc.com'
+];
+
+const QUICKSWAP_ROUTER = "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff";
+const SUSHISWAP_ROUTER = "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506";
+const USDC_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"; // USDC on Polygon
+
+const ROUTER_ABI = [
+  "function getAmountsOut(uint amountIn, address[] memory path) view returns (uint[] memory amounts)"
 ];
 
 let currentProviderIndex = 0;
@@ -23,12 +23,6 @@ const PROVIDER_SWITCH_COOLDOWN = 2000; // 2 seconds cooldown
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000; // 2 seconds delay between retries
 
-// Initialize providers
-const alchemyProvider = new ethers.AlchemyProvider(
-  'matic',
-  alchemySettings.apiKey
-);
-
 const createProvider = (url: string) => {
   return new ethers.JsonRpcProvider(url, {
     chainId: 137,
@@ -36,8 +30,8 @@ const createProvider = (url: string) => {
   });
 };
 
-let backupProviders = BACKUP_RPC_PROVIDERS.map(url => createProvider(url));
-let currentProvider: ethers.Provider = alchemyProvider;
+let providers = RPC_PROVIDERS.map(url => createProvider(url));
+let currentProvider: ethers.Provider = providers[0];
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -47,10 +41,10 @@ const getNextProvider = async () => {
     await delay(PROVIDER_SWITCH_COOLDOWN - (now - lastProviderSwitch));
   }
 
-  currentProviderIndex = (currentProviderIndex + 1) % backupProviders.length;
+  currentProviderIndex = (currentProviderIndex + 1) % providers.length;
   lastProviderSwitch = Date.now();
-  currentProvider = backupProviders[currentProviderIndex];
-  console.log(`Switching to backup RPC provider ${currentProviderIndex + 1}/${backupProviders.length}`);
+  currentProvider = providers[currentProviderIndex];
+  console.log(`Switching to RPC provider ${currentProviderIndex + 1}/${providers.length}`);
   return currentProvider;
 };
 
@@ -80,18 +74,6 @@ export const provider = new Proxy({} as ethers.Provider, {
       return async (...args: any[]) => {
         let lastError;
         
-        // First try with Alchemy SDK for specific methods that it supports
-        if (prop === 'getBlock' || prop === 'getBalance' || prop === 'getTransactionCount') {
-          try {
-            // @ts-ignore - Alchemy SDK types are different but compatible
-            const result = await alchemy.core[prop](...args);
-            return result;
-          } catch (error) {
-            console.warn('Alchemy SDK failed, falling back to providers:', error);
-          }
-        }
-        
-        // Fall back to regular providers if Alchemy SDK doesn't support the method or failed
         for (let retry = 0; retry < MAX_RETRIES; retry++) {
           try {
             const result = await value.apply(provider, args);
@@ -137,22 +119,35 @@ export const connectWallet = async () => {
   }
 };
 
-// Cache para armazenar o último preço gerado para cada token
-const lastPrices: { [key: string]: number } = {};
-
-export const getTokenPrice = async (tokenAddress: string) => {
-  if (!lastPrices[tokenAddress]) {
-    lastPrices[tokenAddress] = 1.0;
+async function getPriceFromDEX(
+  routerAddress: string,
+  tokenAddress: string,
+  amount: bigint = ethers.parseEther("1")
+): Promise<number> {
+  try {
+    const router = new ethers.Contract(routerAddress, ROUTER_ABI, provider);
+    const path = [tokenAddress, USDC_ADDRESS];
+    const amounts = await router.getAmountsOut(amount, path);
+    return Number(ethers.formatUnits(amounts[1], 6)); // USDC has 6 decimals
+  } catch (error) {
+    console.error(`Error getting price from DEX:`, error);
+    throw error;
   }
+}
 
-  // Gera uma variação mais significativa (±2%)
-  const variation = (Math.random() - 0.5) * 0.04;
-  
-  // Atualiza o último preço com a variação
-  lastPrices[tokenAddress] = lastPrices[tokenAddress] * (1 + variation);
-  
-  // Adiciona um pequeno atraso aleatório para simular latência da API
-  await new Promise(resolve => setTimeout(resolve, Math.random() * 100));
-  
-  return lastPrices[tokenAddress];
+export const getTokenPrice = async (tokenAddress: string): Promise<number> => {
+  try {
+    // Try QuickSwap first
+    const priceQuickswap = await getPriceFromDEX(QUICKSWAP_ROUTER, tokenAddress);
+    
+    // Then try SushiSwap
+    const priceSushiswap = await getPriceFromDEX(SUSHISWAP_ROUTER, tokenAddress);
+    
+    // Return the average of both prices
+    return (priceQuickswap + priceSushiswap) / 2;
+  } catch (error) {
+    console.error('Error fetching token prices:', error);
+    // Return a fallback price if both DEXs fail
+    return 1.0;
+  }
 };
