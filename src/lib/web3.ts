@@ -1,5 +1,16 @@
 import { ethers } from 'ethers';
 
+export interface PoolStats {
+  liquidity: number;
+  volume: {
+    '10m': number;
+    '1h': number;
+    '6h': number;
+    '24h': number;
+  };
+  lastUpdate: number;
+}
+
 const QUICKSWAP_ROUTER = "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff";
 const SUSHISWAP_ROUTER = "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506";
 const WMATIC = "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270";
