@@ -271,6 +271,12 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
             return;
           }
 
+          const balance = await checkContractBalance();
+          if (parseFloat(balance) < 0.1) {
+            console.log("Saldo do contrato insuficiente para simulação");
+            return;
+          }
+
           const result = await simulateFlashloan(1, tokenA, tokenB, dexA, dexB);
           if (!isProcessingRef.current) return; // Check if component is still mounted
           
@@ -285,9 +291,8 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
           }
           
           if (isOpportunityProfitable(result)) {
-            console.log("Oportunidade lucrativa encontrada, executando automaticamente...");
-            await executeArbitrage(result);
-            setLastExecutionTime(currentTime);
+            console.log("Oportunidade lucrativa encontrada!");
+            setShowOpportunityDialog(true);
           }
         } catch (error) {
           console.error("Erro na simulação:", error);
