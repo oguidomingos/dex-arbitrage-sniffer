@@ -21,29 +21,31 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB }: ArbitrageC
   const prices = useTokenPrices([tokenA, tokenB]);
 
   useEffect(() => {
-    const updateProfits = async () => {
+    const updateProfitsAndSimulation = async () => {
       try {
-        // Atualiza o lucro estimado baseado nos preços atuais
         const tokenAPrice = prices[tokenA]?.[prices[tokenA]?.length - 1]?.price;
         const tokenBPrice = prices[tokenB]?.[prices[tokenB]?.length - 1]?.price;
         
         if (tokenAPrice && tokenBPrice) {
+          // Atualiza o lucro estimado
           const priceDiff = Math.abs(tokenAPrice - tokenBPrice);
           const newProfit = (priceDiff / Math.min(tokenAPrice, tokenBPrice)) * 100;
           setCurrentProfit(parseFloat(newProfit.toFixed(3)));
           
-          // Atualiza a simulação do flashloan com os novos preços
+          // Simula o flashloan com os preços atuais
           const result = await simulateFlashloan(20, tokenA, tokenB, dexA, dexB);
           setSimulationResult(result);
         }
       } catch (error) {
-        console.error("Erro na atualização dos lucros:", error);
+        console.error("Erro ao atualizar lucros e simulação:", error);
       }
     };
 
-    // Atualiza imediatamente e depois a cada segundo
-    updateProfits();
-    const interval = setInterval(updateProfits, 1000);
+    // Executa a atualização imediatamente
+    updateProfitsAndSimulation();
+    
+    // Configura o intervalo para atualizar a cada segundo
+    const interval = setInterval(updateProfitsAndSimulation, 1000);
     
     return () => clearInterval(interval);
   }, [tokenA, tokenB, dexA, dexB, prices]);
