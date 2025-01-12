@@ -1,5 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input"; // Add Input import
 import { ArbitrageHeader } from "./arbitrage/ArbitrageHeader";
 import { ArbitrageMetrics } from "./arbitrage/ArbitrageMetrics";
 import { ArbitrageActions } from "./arbitrage/ArbitrageActions";
@@ -59,6 +60,8 @@ export const ArbitrageDisplay = ({
   const [previousPriceB, setPreviousPriceB] = useState<number>(0);
   const [gasPriceGwei, setGasPriceGwei] = useState<string>("0");
   const [estimatedGasCost, setEstimatedGasCost] = useState<string>("0");
+  const [operationAmount, setOperationAmount] = useState<string>("1000");
+  const [calculatedProfit, setCalculatedProfit] = useState<number>(0);
 
   const checkWalletDetails = async () => {
     if (window.ethereum) {
@@ -101,6 +104,13 @@ export const ArbitrageDisplay = ({
   const priceDiff = Math.abs(priceA - priceB);
   const percentDiff = ((priceDiff / Math.min(priceA, priceB)) * 100) || 0;
 
+  // Calculate potential profit based on operation amount
+  useEffect(() => {
+    const amount = parseFloat(operationAmount) || 0;
+    const potentialProfit = amount * (percentDiff / 100) - parseFloat(estimatedGasCost);
+    setCalculatedProfit(potentialProfit > 0 ? potentialProfit : 0);
+  }, [operationAmount, percentDiff, estimatedGasCost]);
+
   useEffect(() => {
     if (priceA !== previousPriceA) {
       setPreviousPriceA(priceA);
@@ -141,14 +151,29 @@ export const ArbitrageDisplay = ({
           <div className="flex flex-col items-end">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-green-500" />
-              <span className={`text-lg font-semibold ${estimatedProfit && estimatedProfit > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                {estimatedProfit ? `${estimatedProfit > 0 ? '+' : ''}${estimatedProfit.toFixed(4)} USDC` : '0.00 USDC'}
+              <span className={`text-lg font-semibold ${calculatedProfit > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                {calculatedProfit.toFixed(4)} USDC
               </span>
             </div>
             <span className="text-sm text-muted-foreground mt-1">
               Spread: {percentDiff.toFixed(2)}%
             </span>
           </div>
+        </div>
+
+        {/* Operation Amount Input */}
+        <div className="bg-black/20 rounded-lg p-4">
+          <label htmlFor="operationAmount" className="block text-sm text-muted-foreground mb-2">
+            Valor da Operação (USDC)
+          </label>
+          <Input
+            id="operationAmount"
+            type="number"
+            value={operationAmount}
+            onChange={(e) => setOperationAmount(e.target.value)}
+            className="w-full bg-black/20 border-gray-700"
+            placeholder="Digite o valor em USDC"
+          />
         </div>
 
         {/* Price Information */}
