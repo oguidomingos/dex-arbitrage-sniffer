@@ -119,7 +119,6 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
 
       addTransaction('execute', 'pending');
 
-      // Aguarda a aprovação do MetaMask antes de prosseguir
       const success = await executeRealArbitrage(
         tokenA,
         tokenB,
@@ -188,6 +187,24 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
     }
   };
 
+  const handleSimulationResult = async (result: any) => {
+    if (result && result.expectedProfit > 0) {
+      setEstimatedProfit(result.expectedProfit);
+      
+      addTransaction('simulation', 'success', undefined, undefined, undefined, result.expectedProfit);
+      
+      console.log('Taxas da operação:', {
+        flashloanFee: result.flashloanFee,
+        gasCost: result.gasCost,
+        slippage: result.expectedProfit * 0.005 // 0.5% slippage
+      });
+      
+      if (result.expectedProfit > 0.01) {
+        setShowOpportunityDialog(true);
+      }
+    }
+  };
+
   const handleSimulate = async () => {
     if (isProcessingRef.current) {
       console.log('Já existe uma simulação em andamento, ignorando...');
@@ -219,16 +236,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       console.log("Resultado da simulação:", result);
       setSimulationResult(result);
       
-      if (result && result.expectedProfit) {
-        addTransaction('simulation', 'success', undefined, undefined, undefined, result.expectedProfit);
-        
-        if (isOpportunityProfitable(result)) {
-          console.log("Oportunidade lucrativa encontrada");
-          setShowOpportunityDialog(true);
-        } else {
-          toast.info("Simulação concluída, mas lucro insuficiente");
-        }
-      }
+      await handleSimulationResult(result);
     } catch (error) {
       console.error("Erro na simulação:", error);
       addTransaction('simulation', 'failed', undefined, undefined, error instanceof Error ? error.message : 'Erro desconhecido');
@@ -278,22 +286,11 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
           }
 
           const result = await simulateFlashloan(1, tokenA, tokenB, dexA, dexB);
-          if (!isProcessingRef.current) return; // Check if component is still mounted
+          if (!isProcessingRef.current) return;
           
           setSimulationResult(result);
-          setEstimatedProfit(result.expectedProfit);
+          await handleSimulationResult(result);
           
-          if (window.ethereum) {
-            const provider = new ethers.BrowserProvider(window.ethereum);
-            const gasPrice = await provider.getFeeData();
-            const estimatedGas = ethers.formatEther(gasPrice.maxFeePerGas || 0n);
-            setGasEstimate(estimatedGas);
-          }
-          
-          if (isOpportunityProfitable(result)) {
-            console.log("Oportunidade lucrativa encontrada!");
-            setShowOpportunityDialog(true);
-          }
         } catch (error) {
           console.error("Erro na simulação:", error);
           setEstimatedProfit(null);

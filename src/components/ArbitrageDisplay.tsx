@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowRightLeft, Wallet, RefreshCcw, PiggyBank, TrendingUp, AlertCircle } from "lucide-react";
+import { ArrowRightLeft, Wallet, RefreshCcw, PiggyBank, TrendingUp, AlertCircle, Search } from "lucide-react";
 import { TransactionHistory } from "./TransactionHistory";
 import { ArbitrageDetails } from "./ArbitrageDetails";
 import { toast } from "sonner";
@@ -124,6 +124,12 @@ export const ArbitrageDisplay = ({
                 <ArrowRightLeft className="h-4 w-4 text-polygon-purple inline mx-2" />
                 <span>{dexB}</span>
               </div>
+              {!isPaused && !isSimulating && (
+                <div className="flex items-center gap-1 text-yellow-500 bg-yellow-500/10 px-3 py-1 rounded-full animate-pulse">
+                  <Search className="h-4 w-4" />
+                  <span>Buscando oportunidades...</span>
+                </div>
+              )}
               {estimatedProfit !== null && isOpportunityProfitable && (
                 <div className="flex items-center gap-1 text-green-500 bg-green-500/10 px-3 py-1 rounded-full">
                   <TrendingUp className="h-4 w-4" />
@@ -177,7 +183,7 @@ export const ArbitrageDisplay = ({
             disabled={isSimulating || isPaused}
             className="flex-1 bg-polygon-purple hover:bg-polygon-purple/90 transition-colors"
           >
-            <RefreshCcw className="h-4 w-4 mr-2" />
+            <RefreshCcw className={`h-4 w-4 mr-2 ${isSimulating ? 'animate-spin' : ''}`} />
             {isSimulating ? "Simulando..." : "Simular"}
           </Button>
           <Button 
