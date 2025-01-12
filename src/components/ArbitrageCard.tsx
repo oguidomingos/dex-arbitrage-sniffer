@@ -6,6 +6,7 @@ import { useTokenPrices } from "@/hooks/useTokenPrices";
 import { ethers } from "ethers";
 import { SimulationDialog } from "./dialogs/SimulationDialog";
 import { ArbitrageDisplay } from "./ArbitrageDisplay";
+import { validateArbitrageParameters } from "@/lib/validation";
 
 interface ArbitrageCardProps {
   tokenA: string;
@@ -34,18 +35,18 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [showSimulationDialog, setShowSimulationDialog] = useState(false);
   const [estimatedProfit, setEstimatedProfit] = useState<number | null>(null);
+  const [gasEstimate, setGasEstimate] = useState<string | null>(null);
   const prices = useTokenPrices([tokenA, tokenB]);
 
   const isOpportunityProfitable = (result: any) => {
-    const gasEstimate = 0.01;
-    const slippagePercentage = 0.005;
-    
     if (!result || !result.expectedProfit) return false;
     
+    const gasEstimateCost = gasEstimate ? parseFloat(gasEstimate) : 0.01;
+    const slippagePercentage = 0.005; // 0.5% slippage tolerance
     const slippageCost = result.initialAmount * slippagePercentage;
-    const minimumProfitThreshold = 0.02;
+    const minimumProfitThreshold = 0.02; // 2% minimum profit
     
-    const netProfit = result.expectedProfit - slippageCost - gasEstimate;
+    const netProfit = result.expectedProfit - slippageCost - gasEstimateCost;
     const profitPercentage = (netProfit / result.initialAmount) * 100;
     
     return profitPercentage > minimumProfitThreshold;
@@ -67,7 +68,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       error,
       profitEstimate
     };
-    setTransactions(prev => [newTransaction, ...prev]);
+    setTransactions(prev => [newTransaction, ...prev].slice(0, 10)); // Mantém apenas as 10 últimas transações
   };
 
   useEffect(() => {
@@ -82,11 +83,26 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       }
       
       try {
+        // Validação dos parâmetros
+        const validationError = validateArbitrageParameters(tokenA, tokenB, dexA, dexB);
+        if (validationError) {
+          console.error("Validation error:", validationError);
+          return;
+        }
+
         const result = await simulateFlashloan(1, tokenA, tokenB, dexA, dexB);
         setSimulationResult(result);
         setEstimatedProfit(result.expectedProfit);
         
-        if (isOpportunityProfitable(result) && !isExecuting) {
+        // Estima o custo do gas
+        if (window.ethereum) {
+          const provider = new ethers.BrowserProvider(window.ethereum);
+          const gasPrice = await provider.getFeeData();
+          const estimatedGas = ethers.formatEther(gasPrice.maxFeePerGas || 0n);
+          setGasEstimate(estimatedGas);
+        }
+        
+        if (isOpportunityProfitable(result)) {
           addTransaction('simulation', 'success', undefined, undefined, result.expectedProfit);
           setShowSimulationDialog(true);
           
@@ -96,22 +112,24 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
           });
           
           setLastExecutionTime(currentTime);
-          
-          setTimeout(() => {
-            setShowSimulationDialog(false);
-          }, 3000);
         }
       } catch (error) {
         console.error("Erro na simulação:", error);
         setEstimatedProfit(null);
         setIsSimulating(false);
+        
+        if (error instanceof Error) {
+          toast.error("Erro na simulação", {
+            description: error.message
+          });
+        }
       }
     };
 
     updateSimulation();
     const interval = setInterval(updateSimulation, 1000);
     return () => clearInterval(interval);
-  }, [tokenA, tokenB, dexA, dexB, isPaused, lastExecutionTime, isExecuting]);
+  }, [tokenA, tokenB, dexA, dexB, isPaused, lastExecutionTime]);
 
   const handleSimulate = async () => {
     if (isPaused) {
@@ -121,15 +139,20 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
     
     setIsSimulating(true);
     try {
+      // Validação dos parâmetros
+      const validationError = validateArbitrageParameters(tokenA, tokenB, dexA, dexB);
+      if (validationError) {
+        throw new Error(validationError);
+      }
+
       const result = await simulateFlashloan(1, tokenA, tokenB, dexA, dexB);
       setSimulationResult(result);
       setShowSimulationDialog(true);
       addTransaction('simulation', 'success', undefined, undefined, result.expectedProfit);
-      toast.success("Simulação concluída com sucesso!");
       
-      setTimeout(() => {
-        setShowSimulationDialog(false);
-      }, 3000);
+      toast.success("Simulação concluída com sucesso!", {
+        description: `Lucro estimado: ${result.expectedProfit.toFixed(2)} USDC`
+      });
     } catch (error) {
       console.error("Erro na simulação:", error);
       addTransaction('simulation', 'failed', undefined, error instanceof Error ? error.message : 'Erro desconhecido');
@@ -148,12 +171,21 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
+      
+      // Validação do saldo antes do saque
+      const balance = await provider.getBalance(await signer.getAddress());
+      if (balance <= 0n) {
+        throw new Error("Sem saldo disponível para saque");
+      }
+
       await withdrawArbitrageProfit(tokenA, signer);
       addTransaction('withdraw', 'success');
       toast.success("Lucro retirado com sucesso!");
     } catch (error) {
       addTransaction('withdraw', 'failed', undefined, error instanceof Error ? error.message : 'Erro desconhecido');
-      toast.error("Erro ao retirar lucro");
+      toast.error("Erro ao retirar lucro", {
+        description: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
     }
   };
 
@@ -164,6 +196,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
         onOpenChange={setShowSimulationDialog}
         simulationResult={simulationResult}
         isExecuting={isExecuting}
+        gasEstimate={gasEstimate}
       />
 
       <ArbitrageDisplay
