@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input"; // Add Input import
+import { Input } from "@/components/ui/input";
 import { ArbitrageHeader } from "./arbitrage/ArbitrageHeader";
 import { ArbitrageMetrics } from "./arbitrage/ArbitrageMetrics";
 import { ArbitrageActions } from "./arbitrage/ArbitrageActions";
@@ -10,7 +10,7 @@ import { ethers } from "ethers";
 import { toast } from "sonner";
 import { PriceChart } from "./PriceChart";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRightLeft, TrendingUp, Clock, DollarSign, Fuel } from "lucide-react";
+import { ArrowRightLeft, TrendingUp, Clock, DollarSign, Fuel, Percent } from "lucide-react";
 
 interface ArbitrageDisplayProps {
   tokenA: string;
@@ -62,6 +62,8 @@ export const ArbitrageDisplay = ({
   const [estimatedGasCost, setEstimatedGasCost] = useState<string>("0");
   const [operationAmount, setOperationAmount] = useState<string>("1000");
   const [calculatedProfit, setCalculatedProfit] = useState<number>(0);
+  const [flashloanPercentage, setFlashloanPercentage] = useState<number>(0);
+  const [flashloanFee, setFlashloanFee] = useState<number>(0);
 
   const checkWalletDetails = async () => {
     if (window.ethereum) {
@@ -73,12 +75,10 @@ export const ArbitrageDisplay = ({
           const balance = await provider.getBalance(accounts[0]);
           setWalletBalance(ethers.formatEther(balance));
           
-          // Get current gas price using getFeeData()
           const feeData = await provider.getFeeData();
           const gasPriceInGwei = ethers.formatUnits(feeData.gasPrice || 0n, "gwei");
           setGasPriceGwei(parseFloat(gasPriceInGwei).toFixed(2));
           
-          // Estimate gas cost for the operation (assuming 250k gas limit)
           const estimatedGas = (feeData.gasPrice || 0n) * BigInt(250000);
           setEstimatedGasCost(ethers.formatEther(estimatedGas));
         }
@@ -104,12 +104,31 @@ export const ArbitrageDisplay = ({
   const priceDiff = Math.abs(priceA - priceB);
   const percentDiff = ((priceDiff / Math.min(priceA, priceB)) * 100) || 0;
 
-  // Calculate potential profit based on operation amount
   useEffect(() => {
     const amount = parseFloat(operationAmount) || 0;
-    const potentialProfit = amount * (percentDiff / 100) - parseFloat(estimatedGasCost);
-    setCalculatedProfit(potentialProfit > 0 ? potentialProfit : 0);
-  }, [operationAmount, percentDiff, estimatedGasCost]);
+    const flashloanFeeRate = 0.0009; // 0.09%
+    const calculatedFee = amount * flashloanFeeRate;
+    const gasInUsd = parseFloat(estimatedGasCost) * priceA; // Convert MATIC gas cost to USD
+    
+    const grossProfit = amount * (percentDiff / 100);
+    const netProfit = grossProfit - calculatedFee - gasInUsd;
+    
+    const poolLiquidity = 1000000; // Example pool liquidity in USDC
+    const flashloanPercent = (amount / poolLiquidity) * 100;
+    
+    setFlashloanFee(calculatedFee);
+    setFlashloanPercentage(flashloanPercent);
+    setCalculatedProfit(netProfit > 0 ? netProfit : 0);
+    
+    console.log('Cálculos da operação:', {
+      amount,
+      flashloanFee: calculatedFee,
+      gasInUsd,
+      grossProfit,
+      netProfit,
+      flashloanPercent
+    });
+  }, [operationAmount, percentDiff, estimatedGasCost, priceA]);
 
   useEffect(() => {
     if (priceA !== previousPriceA) {
@@ -129,7 +148,6 @@ export const ArbitrageDisplay = ({
   return (
     <Card className="w-full bg-gradient-to-br from-[#1a1c2a] to-[#1E1E2D] border-[#2B2B40] hover:border-polygon-purple/30 transition-all duration-300 shadow-lg">
       <div className="p-6 space-y-6">
-        {/* Header Section */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="h-12 w-12 rounded-full bg-polygon-purple/10 flex items-center justify-center">
@@ -161,7 +179,6 @@ export const ArbitrageDisplay = ({
           </div>
         </div>
 
-        {/* Operation Amount Input */}
         <div className="bg-black/20 rounded-lg p-4">
           <label htmlFor="operationAmount" className="block text-sm text-muted-foreground mb-2">
             Valor da Operação (USDC)
@@ -174,9 +191,27 @@ export const ArbitrageDisplay = ({
             className="w-full bg-black/20 border-gray-700"
             placeholder="Digite o valor em USDC"
           />
+          <div className="mt-2 flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">
+              Taxa Flashloan (0.09%):
+            </span>
+            <span className="text-red-400">
+              -{flashloanFee.toFixed(4)} USDC
+            </span>
+          </div>
+          <div className="mt-1 flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">
+              % do Pool:
+            </span>
+            <span className={`${flashloanPercentage > 30 ? 'text-red-400' : 'text-green-500'}`}>
+              {flashloanPercentage.toFixed(2)}%
+              {flashloanPercentage > 30 && (
+                <span className="text-xs ml-2 text-red-400">(Risco Alto)</span>
+              )}
+            </span>
+          </div>
         </div>
 
-        {/* Price Information */}
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-black/20 rounded-lg p-4">
             <div className="text-sm text-muted-foreground mb-1">Price {tokenA}</div>
@@ -192,7 +227,6 @@ export const ArbitrageDisplay = ({
           </div>
         </div>
 
-        {/* Stats Grid */}
         <div className="grid grid-cols-3 gap-4">
           <div className="bg-black/20 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-2">
@@ -223,7 +257,6 @@ export const ArbitrageDisplay = ({
           </div>
         </div>
 
-        {/* Action Buttons */}
         <div className="flex gap-3">
           <Button
             onClick={onSimulate}
@@ -241,7 +274,6 @@ export const ArbitrageDisplay = ({
           </Button>
         </div>
 
-        {/* Transaction History Preview */}
         {transactions.length > 0 && (
           <div className="mt-4">
             <h4 className="text-sm font-medium text-muted-foreground mb-2">Últimas Transações</h4>
