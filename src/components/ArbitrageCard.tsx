@@ -145,12 +145,11 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       
-      const txHash = await withdrawArbitrageProfit(tokenA, signer);
+      const txHash = await withdrawProfit(tokenA, signer);
       console.log("Hash da transação de retirada:", txHash);
       
       addTransaction('withdraw', 'pending', txHash);
       
-      // Aguarda confirmação da transação
       const receipt = await provider.waitForTransaction(txHash);
       console.log("Recibo da transação:", receipt);
       

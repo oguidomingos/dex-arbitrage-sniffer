@@ -1,14 +1,17 @@
 import { ethers } from 'ethers';
 import { toast } from 'sonner';
 
-// Endereços dos contratos na Polygon Mainnet
-const ARBITRAGE_CONTRACT = "0x..."; // Endereço do contrato de arbitragem
-const AAVE_LENDING_POOL = "0x8dFf5E27EA6b7AC08EbFdf9eB090F32ee9a30fcf"; // Aave V3 na Polygon
+// Endereços dos tokens na rede Polygon
+const USDC_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
+const MATIC_ADDRESS = "0x0000000000000000000000000000000000001010";
+
+// Endereço do contrato de arbitragem na Polygon
+const ARBITRAGE_CONTRACT_ADDRESS = "0xd6B6C965aAC635B626f8fcF75785645ed6CbbDB5";
 
 const ARBITRAGE_ABI = [
-  "function executeArbitrage(address tokenA, address tokenB, uint256 amount) external",
-  "function withdrawProfit(address token) external",
-  "function getExpectedReturn(address tokenA, address tokenB, uint256 amount) external view returns (uint256)",
+  "function requestFlashLoan(address token, uint256 amount, address tokenA, address tokenB) external",
+  "function withdraw(address token) external",
+  "function withdrawProfit(address token) external"
 ];
 
 export const executeRealArbitrage = async (
@@ -18,52 +21,63 @@ export const executeRealArbitrage = async (
   signer: ethers.Signer
 ) => {
   try {
-    const contract = new ethers.Contract(ARBITRAGE_CONTRACT, ARBITRAGE_ABI, signer);
-    
-    // Primeiro, simula o retorno esperado
-    const expectedReturn = await contract.getExpectedReturn(tokenA, tokenB, ethers.parseEther(amount));
-    
-    // Se o retorno esperado for menor que o custo do gás + slippage, aborta
-    if (expectedReturn.lt(ethers.parseEther('0.02'))) {
-      toast.error("Retorno esperado muito baixo para cobrir custos");
-      return false;
-    }
+    const contract = new ethers.Contract(
+      ARBITRAGE_CONTRACT_ADDRESS,
+      ARBITRAGE_ABI,
+      signer
+    );
 
-    // Executa a arbitragem
-    const tx = await contract.executeArbitrage(
+    const amountInWei = ethers.parseUnits(amount, 6);
+    
+    console.log('Executing arbitrage with params:', {
       tokenA,
       tokenB,
-      ethers.parseEther(amount),
-      {
-        gasLimit: 500000,
+      amount: amountInWei.toString()
+    });
+
+    const tx = await contract.requestFlashLoan(
+      USDC_ADDRESS,
+      amountInWei,
+      tokenA === 'MATIC' ? MATIC_ADDRESS : tokenA,
+      tokenB === 'MATIC' ? MATIC_ADDRESS : tokenB,
+      { 
+        gasLimit: 200000n,
         maxFeePerGas: ethers.parseUnits('50', 'gwei'),
         maxPriorityFeePerGas: ethers.parseUnits('1.5', 'gwei')
       }
     );
 
-    await tx.wait();
-    toast.success("Arbitragem executada com sucesso!");
+    await tx.wait(1);
     return true;
   } catch (error) {
-    console.error("Erro na execução da arbitragem:", error);
-    toast.error("Erro ao executar arbitragem");
-    return false;
+    console.error("Erro ao executar arbitragem:", error);
+    throw error;
   }
 };
 
-export const withdrawArbitrageProfit = async (
+export const withdrawProfit = async (
   token: string,
   signer: ethers.Signer
-) => {
+): Promise<string> => {
   try {
-    const contract = new ethers.Contract(ARBITRAGE_CONTRACT, ARBITRAGE_ABI, signer);
-    const tx = await contract.withdrawProfit(token);
-    await tx.wait();
-    toast.success("Lucro retirado com sucesso!");
-    return true;
+    const contract = new ethers.Contract(
+      ARBITRAGE_CONTRACT_ADDRESS,
+      ARBITRAGE_ABI,
+      signer
+    );
+
+    const tokenAddress = token === 'MATIC' ? MATIC_ADDRESS : USDC_ADDRESS;
+
+    const tx = await contract.withdrawProfit(tokenAddress, { 
+      gasLimit: 150000n,
+      maxFeePerGas: ethers.parseUnits('50', 'gwei'),
+      maxPriorityFeePerGas: ethers.parseUnits('1.5', 'gwei')
+    });
+    
+    const receipt = await tx.wait();
+    return receipt.hash;
   } catch (error) {
     console.error("Erro ao retirar lucro:", error);
-    toast.error("Erro ao retirar lucro");
-    return false;
+    throw error;
   }
 };
