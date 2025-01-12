@@ -33,11 +33,11 @@ const approveToken = async (
       console.log('Aprovando token...');
       const approveTx = await tokenContract.approve(
         spenderAddress,
-        ethers.MaxUint256, // Aprova o máximo possível para evitar futuras aprovações
+        ethers.MaxUint256,
         {
           gasLimit: 100000n,
-          maxFeePerGas: ethers.parseUnits('500', 'gwei'),
-          maxPriorityFeePerGas: ethers.parseUnits('500', 'gwei')
+          maxFeePerGas: ethers.parseUnits('50', 'gwei'),
+          maxPriorityFeePerGas: ethers.parseUnits('2', 'gwei')
         }
       );
       await approveTx.wait(1);
@@ -75,18 +75,11 @@ export const executeArbitrage = async (
     // Aprova o token antes da operação
     await approveToken(tokenAAddress, ARBITRAGE_CONTRACT_ADDRESS, amountInWei, signer);
 
-    // Configurações ultra agressivas de gás
-    const gasPrice = await signer.provider?.getFeeData();
-    const maxPriorityFeePerGas = gasPrice?.maxPriorityFeePerGas ?? ethers.parseUnits('500', 'gwei');
-    const maxFeePerGas = gasPrice?.maxFeePerGas ?? ethers.parseUnits('1000', 'gwei');
-
     console.log('Executing arbitrage with params:', {
       tokenAAddress,
       tokenBAddress,
       amountInWei: amountInWei.toString(),
       decimals,
-      maxFeePerGas: maxFeePerGas.toString(),
-      maxPriorityFeePerGas: maxPriorityFeePerGas.toString()
     });
 
     const tx = await contract.requestFlashLoan(
@@ -95,9 +88,9 @@ export const executeArbitrage = async (
       tokenAAddress,
       tokenBAddress,
       { 
-        maxFeePerGas: maxFeePerGas * 3n, // Triplica o gas fee máximo
-        maxPriorityFeePerGas: maxPriorityFeePerGas * 3n, // Triplica a prioridade
-        gasLimit: 10000000n, // Aumenta ainda mais o limite de gás
+        gasLimit: 5000000n,
+        maxFeePerGas: ethers.parseUnits('50', 'gwei'),
+        maxPriorityFeePerGas: ethers.parseUnits('2', 'gwei')
       }
     );
 
@@ -128,15 +121,10 @@ export const withdrawProfit = async (
       signer
     );
 
-    // Configurações ultra agressivas de gás para retirada
-    const gasPrice = await signer.provider?.getFeeData();
-    const maxPriorityFeePerGas = gasPrice?.maxPriorityFeePerGas ?? ethers.parseUnits('500', 'gwei');
-    const maxFeePerGas = gasPrice?.maxFeePerGas ?? ethers.parseUnits('1000', 'gwei');
-
     const tx = await contract.withdraw(tokenAddress, { 
-      maxFeePerGas: maxFeePerGas * 3n, // Triplica o gas fee
-      maxPriorityFeePerGas: maxPriorityFeePerGas * 3n, // Triplica a prioridade
-      gasLimit: 5000000n, // Aumenta o limite de gás
+      gasLimit: 500000n,
+      maxFeePerGas: ethers.parseUnits('50', 'gwei'),
+      maxPriorityFeePerGas: ethers.parseUnits('2', 'gwei')
     });
     
     await tx.wait(1);
