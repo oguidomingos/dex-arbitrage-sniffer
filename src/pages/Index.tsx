@@ -15,6 +15,34 @@ const Index = () => {
       profit: 0.5,
       dexA: "QuickSwap",
       dexB: "SushiSwap",
+    },
+    {
+      tokenA: "USDT",
+      tokenB: "USDC",
+      profit: 0.2,
+      dexA: "QuickSwap",
+      dexB: "UniswapV3",
+    },
+    {
+      tokenA: "ETH",
+      tokenB: "USDC",
+      profit: 0.3,
+      dexA: "SushiSwap",
+      dexB: "UniswapV3",
+    },
+    {
+      tokenA: "WBTC",
+      tokenB: "USDC",
+      profit: 0.4,
+      dexA: "QuickSwap",
+      dexB: "SushiSwap",
+    },
+    {
+      tokenA: "DAI",
+      tokenB: "USDC",
+      profit: 0.15,
+      dexA: "UniswapV3",
+      dexB: "SushiSwap",
     }
   ]);
 
