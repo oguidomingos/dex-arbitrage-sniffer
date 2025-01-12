@@ -1,7 +1,6 @@
 import { ethers } from 'ethers';
 import { toast } from 'sonner';
 
-// Array of backup RPC providers
 const RPC_PROVIDERS = [
   'https://polygon-rpc.com',
   'https://rpc-mainnet.matic.network',
@@ -11,7 +10,7 @@ const RPC_PROVIDERS = [
 
 const QUICKSWAP_ROUTER = "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff";
 const SUSHISWAP_ROUTER = "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506";
-const USDC_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"; // USDC on Polygon
+const USDC_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
 
 const ROUTER_ABI = [
   "function getAmountsOut(uint amountIn, address[] memory path) view returns (uint[] memory amounts)"
@@ -19,9 +18,9 @@ const ROUTER_ABI = [
 
 let currentProviderIndex = 0;
 let lastProviderSwitch = Date.now();
-const PROVIDER_SWITCH_COOLDOWN = 2000; // 2 seconds cooldown
+const PROVIDER_SWITCH_COOLDOWN = 2000;
 const MAX_RETRIES = 3;
-const RETRY_DELAY = 2000; // 2 seconds delay between retries
+const RETRY_DELAY = 2000;
 
 const createProvider = (url: string) => {
   return new ethers.JsonRpcProvider(url, {
@@ -104,17 +103,25 @@ export const provider = new Proxy({} as ethers.Provider, {
 export const connectWallet = async () => {
   try {
     if (!window.ethereum) {
-      toast.error('Please install MetaMask to use this app');
+      toast.error('Por favor, instale a MetaMask');
       return null;
     }
 
     await window.ethereum.request({ method: 'eth_requestAccounts' });
     const provider = new ethers.BrowserProvider(window.ethereum);
     const signer = await provider.getSigner();
+    
+    // Verifica saldo de MATIC
+    const balance = await provider.getBalance(await signer.getAddress());
+    if (balance < ethers.parseEther("0.1")) {
+      toast.error('Saldo de MATIC insuficiente. Mínimo necessário: 0.1 MATIC');
+      return null;
+    }
+    
     return signer;
   } catch (error) {
     console.error('Error connecting wallet:', error);
-    toast.error('Failed to connect wallet');
+    toast.error('Falha ao conectar carteira');
     return null;
   }
 };
@@ -128,7 +135,7 @@ async function getPriceFromDEX(
     const router = new ethers.Contract(routerAddress, ROUTER_ABI, provider);
     const path = [tokenAddress, USDC_ADDRESS];
     const amounts = await router.getAmountsOut(amount, path);
-    return Number(ethers.formatUnits(amounts[1], 6)); // USDC has 6 decimals
+    return Number(ethers.formatUnits(amounts[1], 6));
   } catch (error) {
     console.error(`Error getting price from DEX:`, error);
     throw error;
@@ -137,17 +144,19 @@ async function getPriceFromDEX(
 
 export const getTokenPrice = async (tokenAddress: string): Promise<number> => {
   try {
-    // Try QuickSwap first
     const priceQuickswap = await getPriceFromDEX(QUICKSWAP_ROUTER, tokenAddress);
-    
-    // Then try SushiSwap
     const priceSushiswap = await getPriceFromDEX(SUSHISWAP_ROUTER, tokenAddress);
     
-    // Return the average of both prices
-    return (priceQuickswap + priceSushiswap) / 2;
+    // Calcula a diferença percentual
+    const priceDiff = Math.abs(priceQuickswap - priceSushiswap);
+    const avgPrice = (priceQuickswap + priceSushiswap) / 2;
+    const percentDiff = (priceDiff / avgPrice) * 100;
+    
+    console.log(`Price difference for ${tokenAddress}: ${percentDiff.toFixed(2)}%`);
+    
+    return avgPrice;
   } catch (error) {
     console.error('Error fetching token prices:', error);
-    // Return a fallback price if both DEXs fail
-    return 1.0;
+    return 0;
   }
 };

@@ -1,12 +1,9 @@
 import { ethers } from 'ethers';
 import { toast } from 'sonner';
 
-// Endereços dos tokens na rede Polygon
 const USDC_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
-const MATIC_ADDRESS = "0x0000000000000000000000000000000000001010"; // Endereço nativo do MATIC
-
-// Endereço do contrato de arbitragem na Polygon
-const ARBITRAGE_CONTRACT_ADDRESS = "0x6e7a5FAFcec6BB1e78bAE2A1F0B612012BF14827"; // Novo endereço do contrato
+const MATIC_ADDRESS = "0x0000000000000000000000000000000000001010";
+const ARBITRAGE_CONTRACT_ADDRESS = "0x6e7a5FAFcec6BB1e78bAE2A1F0B612012BF14827";
 
 const ARBITRAGE_ABI = [
   "function requestFlashLoan(address token, uint256 amount, address tokenA, address tokenB) external",
@@ -35,6 +32,7 @@ const approveToken = async (
         spenderAddress,
         ethers.MaxUint256,
         {
+          value: ethers.parseEther("0.1"), // Paga fees em MATIC
           gasLimit: 100000n,
           maxFeePerGas: ethers.parseUnits('50', 'gwei'),
           maxPriorityFeePerGas: ethers.parseUnits('1.5', 'gwei')
@@ -58,11 +56,7 @@ export const executeArbitrage = async (
   signer: ethers.Signer
 ) => {
   try {
-    if (tokenA !== 'MATIC' && tokenB !== 'USDC') {
-      throw new Error("Apenas pares MATIC/USDC são suportados");
-    }
-
-    const tokenAAddress = MATIC_ADDRESS;
+    const tokenAAddress = tokenA === 'MATIC' ? MATIC_ADDRESS : USDC_ADDRESS;
     const tokenBAddress = USDC_ADDRESS;
 
     if (!ethers.isAddress(ARBITRAGE_CONTRACT_ADDRESS)) {
@@ -75,7 +69,6 @@ export const executeArbitrage = async (
       signer
     );
 
-    // Usando 6 decimais para USDC
     const amountInWei = ethers.parseUnits(amount, 6);
 
     console.log('Executing arbitrage with params:', {
@@ -85,13 +78,13 @@ export const executeArbitrage = async (
       decimals: 6,
     });
 
-    // Reduzimos ainda mais o gas limit e ajustamos as taxas para MATIC
     const tx = await contract.requestFlashLoan(
-      tokenBAddress, // Usando USDC como token do flashloan
+      tokenBAddress,
       amountInWei,
       tokenAAddress,
       tokenBAddress,
       { 
+        value: ethers.parseEther("0.1"), // Paga fees em MATIC
         gasLimit: 200000n,
         maxFeePerGas: ethers.parseUnits('50', 'gwei'),
         maxPriorityFeePerGas: ethers.parseUnits('1.5', 'gwei')
@@ -130,6 +123,7 @@ export const withdrawProfit = async (
     );
 
     const tx = await contract.withdraw(tokenAddress, { 
+      value: ethers.parseEther("0.1"), // Paga fees em MATIC
       gasLimit: 150000n,
       maxFeePerGas: ethers.parseUnits('50', 'gwei'),
       maxPriorityFeePerGas: ethers.parseUnits('1.5', 'gwei')
