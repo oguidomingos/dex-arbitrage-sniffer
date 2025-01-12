@@ -6,7 +6,7 @@ const USDC_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
 const WETH_ADDRESS = "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619";
 
 // Endereço do contrato de arbitragem na Polygon
-const ARBITRAGE_CONTRACT_ADDRESS = "0xd6B6C965aAC635B626f8fcF75785645ed6CbbDB5";
+const ARBITRAGE_CONTRACT_ADDRESS = "0xd6B6C965aAC635B626f8fcF75785645ed6cbbDB5";
 
 const ARBITRAGE_ABI = [
   "function requestFlashLoan(address token, uint256 amount, address tokenA, address tokenB) external",
@@ -30,18 +30,18 @@ const approveToken = async (
     const currentAllowance = await tokenContract.allowance(await signer.getAddress(), spenderAddress);
     
     if (currentAllowance < amount) {
-      console.log('Aprovando token com aprovação infinita...');
+      console.log('Aprovando token...');
       const approveTx = await tokenContract.approve(
         spenderAddress,
         ethers.MaxUint256,
         {
-          gasLimit: 100000n,
-          maxFeePerGas: ethers.parseUnits('500', 'gwei'),
+          gasLimit: 150000n, // Aumentado para garantir execução
+          maxFeePerGas: ethers.parseUnits('100', 'gwei'),
           maxPriorityFeePerGas: ethers.parseUnits('2', 'gwei')
         }
       );
       await approveTx.wait(1);
-      console.log('Token aprovado com sucesso! (aprovação infinita)');
+      console.log('Token aprovado com sucesso!');
     } else {
       console.log('Token já possui aprovação suficiente');
     }
@@ -84,19 +84,20 @@ export const executeArbitrage = async (
 
     console.log('Executing arbitrage with params:', {
       tokenAAddress,
-      tokenBAddress,
       amountInWei: amountInWei.toString(),
+      tokenBAddress,
       decimals,
     });
 
+    // Reduzimos o gas limit e ajustamos as taxas
     const tx = await contract.requestFlashLoan(
       tokenAAddress,
       amountInWei,
       tokenAAddress,
       tokenBAddress,
       { 
-        gasLimit: 5000000n,
-        maxFeePerGas: ethers.parseUnits('500', 'gwei'),
+        gasLimit: 300000n, // Reduzido para evitar erros de gas estimation
+        maxFeePerGas: ethers.parseUnits('100', 'gwei'),
         maxPriorityFeePerGas: ethers.parseUnits('2', 'gwei')
       }
     );
@@ -133,8 +134,8 @@ export const withdrawProfit = async (
     );
 
     const tx = await contract.withdraw(tokenAddress, { 
-      gasLimit: 500000n,
-      maxFeePerGas: ethers.parseUnits('500', 'gwei'),
+      gasLimit: 200000n,
+      maxFeePerGas: ethers.parseUnits('100', 'gwei'),
       maxPriorityFeePerGas: ethers.parseUnits('2', 'gwei')
     });
     
