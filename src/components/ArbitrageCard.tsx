@@ -73,6 +73,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       } catch (error) {
         console.error("Erro na simulação:", error);
         setEstimatedProfit(null);
+        setIsSimulating(false); // Reset simulation state on error
       }
     };
 
@@ -110,11 +111,14 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       const result = await simulateFlashloan(1, tokenA, tokenB, dexA, dexB);
       setSimulationResult(result);
       setShowSimulationDialog(true);
+      addTransaction('simulation', 'success', undefined, undefined, result.expectedProfit);
       toast.success("Simulação concluída com sucesso!");
     } catch (error) {
+      console.error("Erro na simulação:", error);
+      addTransaction('simulation', 'failed', undefined, error instanceof Error ? error.message : 'Erro desconhecido');
       toast.error("Erro ao simular operação");
     } finally {
-      setIsSimulating(false);
+      setIsSimulating(false); // Always reset simulation state
     }
   };
 
@@ -146,7 +150,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       addTransaction('execute', 'failed', undefined, error instanceof Error ? error.message : 'Erro desconhecido');
       toast.error("Erro ao executar arbitragem");
     } finally {
-      setIsExecuting(false);
+      setIsExecuting(false); // Always reset execution state
     }
   };
 
