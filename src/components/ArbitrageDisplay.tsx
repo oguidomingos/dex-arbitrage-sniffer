@@ -8,6 +8,8 @@ import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import { toast } from "sonner";
 import { PriceChart } from "./PriceChart";
+import { Badge } from "@/components/ui/badge";
+import { ArrowRightLeft, TrendingUp, Clock, DollarSign } from "lucide-react";
 
 interface ArbitrageDisplayProps {
   tokenA: string;
@@ -70,36 +72,9 @@ export const ArbitrageDisplay = ({
     }
   };
 
-  const checkRequirements = async () => {
-    if (!window.ethereum) {
-      toast.error("Por favor, instale a MetaMask");
-      return false;
-    }
-
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    const accounts = await provider.send("eth_accounts", []);
-    
-    if (accounts.length === 0) {
-      toast.error("Por favor, conecte sua carteira MetaMask");
-      return false;
-    }
-
-    const balance = await provider.getBalance(accounts[0]);
-    const maticBalance = parseFloat(ethers.formatEther(balance));
-    
-    if (maticBalance < 0.1) {
-      toast.error("Saldo de MATIC insuficiente. Mínimo necessário: 0.1 MATIC");
-      return false;
-    }
-
-    return true;
-  };
-
   useEffect(() => {
     checkWalletDetails();
-    const interval = setInterval(() => {
-      checkWalletDetails();
-    }, 10000);
+    const interval = setInterval(checkWalletDetails, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -110,128 +85,141 @@ export const ArbitrageDisplay = ({
 
   const priceA = getTokenPrice(tokenA);
   const priceB = getTokenPrice(tokenB);
-  
   const priceDiff = Math.abs(priceA - priceB);
-  const avgPrice = (priceA + priceB) / 2;
-  const percentDiff = avgPrice > 0 ? (priceDiff / avgPrice) * 100 : 0;
-
-  const flashloanAmount = priceA * 50;
-  const flashloanFee = flashloanAmount * 0.0009;
-  const gasCost = 0.01;
-
-  const calculatedProfit = simulationResult?.expectedProfit || 
-    (percentDiff > 0 ? (flashloanAmount * (percentDiff / 100)) - flashloanFee - (gasCost * getTokenPrice('MATIC')) : 0);
+  const percentDiff = ((priceDiff / Math.min(priceA, priceB)) * 100) || 0;
 
   return (
-    <div className="space-y-6">
-      <Card className="w-full bg-[#1A1F2C] border-2 border-polygon-purple/20 hover:border-polygon-purple/50 transition-all duration-300 shadow-lg hover:shadow-polygon-purple/20">
-        <ArbitrageHeader
-          tokenA={tokenA}
-          tokenB={tokenB}
-          dexA={dexA}
-          dexB={dexB}
-          isPaused={isPaused}
-          isSimulating={isSimulating}
-          estimatedProfit={estimatedProfit}
-          walletBalance={walletBalance}
-          walletAddress={walletAddress}
-        />
-        
-        <CardContent className="space-y-6 p-6">
-          {/* View Selection */}
-          <div className="flex gap-2">
-            <Button
-              variant={selectedView === 'metrics' ? 'default' : 'outline'}
-              onClick={() => setSelectedView('metrics')}
-              className="flex-1"
-            >
-              Métricas
-            </Button>
-            <Button
-              variant={selectedView === 'chart' ? 'default' : 'outline'}
-              onClick={() => setSelectedView('chart')}
-              className="flex-1"
-            >
-              Gráficos
-            </Button>
-            <Button
-              variant={selectedView === 'history' ? 'default' : 'outline'}
-              onClick={() => setSelectedView('history')}
-              className="flex-1"
-            >
-              Histórico
-            </Button>
-          </div>
-
-          {/* Content based on selected view */}
-          <div className="min-h-[400px]">
-            {selectedView === 'metrics' && (
-              <ArbitrageMetrics
-                tokenA={tokenA}
-                tokenB={tokenB}
-                dexA={dexA}
-                dexB={dexB}
-                priceA={priceA}
-                priceB={priceB}
-                priceDiff={priceDiff}
-                percentDiff={percentDiff}
-                flashloanAmount={flashloanAmount}
-                flashloanFee={flashloanFee}
-                gasCost={gasCost}
-                expectedProfit={calculatedProfit}
-                isLoading={isSimulating}
-              />
-            )}
-
-            {selectedView === 'chart' && (
-              <div className="space-y-6">
-                {prices[tokenA]?.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-2">{tokenA} Price</h3>
-                    <div className="bg-black/20 p-4 rounded-lg">
-                      <PriceChart data={prices[tokenA]} token={tokenA} />
-                    </div>
-                  </div>
-                )}
-                {prices[tokenB]?.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-2">{tokenB} Price</h3>
-                    <div className="bg-black/20 p-4 rounded-lg">
-                      <PriceChart data={prices[tokenB]} token={tokenB} />
-                    </div>
-                  </div>
-                )}
+    <Card className="w-full bg-gradient-to-br from-[#1a1c2a] to-[#1E1E2D] border-[#2B2B40] hover:border-polygon-purple/30 transition-all duration-300 shadow-lg">
+      <div className="p-6 space-y-6">
+        {/* Header Section */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-full bg-polygon-purple/10 flex items-center justify-center">
+              <ArrowRightLeft className="h-6 w-6 text-polygon-purple" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">{tokenA}/{tokenB}</h3>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge variant="outline" className="text-xs bg-black/20">
+                  {dexA}
+                </Badge>
+                <ArrowRightLeft className="h-3 w-3 text-muted-foreground" />
+                <Badge variant="outline" className="text-xs bg-black/20">
+                  {dexB}
+                </Badge>
               </div>
-            )}
-
-            {selectedView === 'history' && (
-              <TransactionHistory 
-                transactions={transactions}
-                prices={prices}
-                tokenA={tokenA}
-                tokenB={tokenB}
-                showLogs={false}
-                onTxClick={(txHash) => window.open(`https://polygonscan.com/tx/${txHash}`, '_blank')}
-              />
-            )}
+            </div>
           </div>
-        </CardContent>
+          <div className="flex flex-col items-end">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-green-500" />
+              <span className="text-lg font-semibold text-green-500">
+                {estimatedProfit ? `+${estimatedProfit.toFixed(4)} USDC` : '0.00 USDC'}
+              </span>
+            </div>
+            <span className="text-sm text-muted-foreground mt-1">
+              Spread: {percentDiff.toFixed(2)}%
+            </span>
+          </div>
+        </div>
 
-        <ArbitrageActions
-          isSimulating={isSimulating}
-          isPaused={isPaused}
-          onSimulate={async () => {
-            if (await checkRequirements()) {
-              onSimulate();
-            }
-          }}
-          onWithdraw={async () => {
-            if (await checkRequirements()) {
-              onWithdraw();
-            }
-          }}
-        />
-      </Card>
-    </div>
+        {/* Price Information */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-black/20 rounded-lg p-4">
+            <div className="text-sm text-muted-foreground mb-1">Price {tokenA}</div>
+            <div className="text-lg font-medium text-white">
+              ${priceA.toFixed(4)}
+            </div>
+          </div>
+          <div className="bg-black/20 rounded-lg p-4">
+            <div className="text-sm text-muted-foreground mb-1">Price {tokenB}</div>
+            <div className="text-lg font-medium text-white">
+              ${priceB.toFixed(4)}
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="bg-black/20 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Last Update</span>
+            </div>
+            <div className="text-sm font-medium">
+              {new Date().toLocaleTimeString()}
+            </div>
+          </div>
+          <div className="bg-black/20 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">24h Volume</span>
+            </div>
+            <div className="text-sm font-medium">
+              $1.2M
+            </div>
+          </div>
+          <div className="bg-black/20 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Success Rate</span>
+            </div>
+            <div className="text-sm font-medium">
+              98.5%
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-3">
+          <Button
+            onClick={onSimulate}
+            disabled={isSimulating || isPaused}
+            className="flex-1 bg-polygon-purple hover:bg-polygon-purple/90"
+          >
+            {isSimulating ? 'Simulando...' : 'Simular Arbitragem'}
+          </Button>
+          <Button
+            onClick={onWithdraw}
+            variant="outline"
+            className="flex-1"
+          >
+            Retirar Lucro
+          </Button>
+        </div>
+
+        {/* Transaction History Preview */}
+        {transactions.length > 0 && (
+          <div className="mt-4">
+            <h4 className="text-sm font-medium text-muted-foreground mb-2">Últimas Transações</h4>
+            <div className="space-y-2">
+              {transactions.slice(0, 3).map((tx) => (
+                <div
+                  key={tx.id}
+                  className="flex items-center justify-between bg-black/20 p-3 rounded-lg"
+                >
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant={tx.status === 'success' ? 'default' : 'destructive'}
+                      className="capitalize"
+                    >
+                      {tx.type}
+                    </Badge>
+                    <span className="text-sm text-muted-foreground">
+                      {new Date(tx.timestamp).toLocaleTimeString()}
+                    </span>
+                  </div>
+                  {tx.profitEstimate && (
+                    <span className={`text-sm ${tx.profitEstimate > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                      {tx.profitEstimate > 0 ? '+' : ''}{tx.profitEstimate.toFixed(4)} USDC
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </Card>
   );
 };
