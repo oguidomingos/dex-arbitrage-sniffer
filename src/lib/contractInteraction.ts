@@ -30,18 +30,20 @@ const approveToken = async (
     const currentAllowance = await tokenContract.allowance(await signer.getAddress(), spenderAddress);
     
     if (currentAllowance < amount) {
-      console.log('Aprovando token...');
+      console.log('Aprovando token com aprovação infinita...');
       const approveTx = await tokenContract.approve(
         spenderAddress,
-        ethers.MaxUint256,
+        ethers.MaxUint256, // Aprovação infinita
         {
           gasLimit: 100000n,
-          maxFeePerGas: ethers.parseUnits('50', 'gwei'),
+          maxFeePerGas: ethers.parseUnits('500', 'gwei'),
           maxPriorityFeePerGas: ethers.parseUnits('2', 'gwei')
         }
       );
       await approveTx.wait(1);
-      console.log('Token aprovado com sucesso!');
+      console.log('Token aprovado com sucesso! (aprovação infinita)');
+    } else {
+      console.log('Token já possui aprovação suficiente');
     }
   } catch (error) {
     console.error('Erro ao aprovar token:', error);
