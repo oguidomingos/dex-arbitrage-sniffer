@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ArbitrageCard } from "@/components/ArbitrageCard";
-import { connectWallet, provider } from "@/lib/web3";
+import { connectWallet, getProvider } from "@/lib/web3";
 import { toast } from "sonner";
 import { Pause, Play } from "lucide-react";
 
@@ -44,7 +44,6 @@ const Index = () => {
         const accounts = await window.ethereum.request({ method: 'eth_accounts' });
         if (accounts.length > 0) {
           setConnected(true);
-          // Verificar se o endereço da carteira corresponde ao contrato
           const userAddress = accounts[0].toLowerCase();
           const contractAddress = "0xd6B6C965aAC635B626f8fcF75785645ed6CbbDB5".toLowerCase();
           if (userAddress !== contractAddress) {
