@@ -5,6 +5,7 @@ import { executeArbitrage, withdrawProfit } from "@/lib/contractInteraction";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { PriceChart } from "./PriceChart";
+import { TransactionList } from "./TransactionList";
 import { useTokenPrices } from "@/hooks/useTokenPrices";
 import { ArrowRightLeft, Wallet, RefreshCcw, PiggyBank } from "lucide-react";
 import { ethers } from "ethers";
@@ -18,11 +19,21 @@ interface ArbitrageCardProps {
   isPaused: boolean;
 }
 
+interface Transaction {
+  id: string;
+  timestamp: number;
+  type: 'execute' | 'withdraw';
+  status: 'success' | 'failed';
+  amount?: string;
+  error?: string;
+}
+
 export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: ArbitrageCardProps) => {
   const [isSimulating, setIsSimulating] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
   const [simulationResult, setSimulationResult] = useState<any>(null);
   const [lastExecutionTime, setLastExecutionTime] = useState(0);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const prices = useTokenPrices([tokenA, tokenB]);
 
   useEffect(() => {
@@ -30,9 +41,8 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       if (isPaused) return;
       
       const currentTime = Date.now();
-      const oneMinute = 60000; // 60 segundos em milissegundos
+      const oneMinute = 60000;
       
-      // Verifica se já passou um minuto desde a última execução
       if (currentTime - lastExecutionTime < oneMinute) {
         return;
       }
@@ -42,7 +52,6 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
         const result = await simulateFlashloan(1, tokenA, tokenB, dexA, dexB);
         setSimulationResult(result);
         
-        // Auto-execute if profitable and not paused
         if (result.expectedProfit > 0 && !isExecuting && !isPaused) {
           handleExecuteArbitrage();
           setLastExecutionTime(currentTime);
@@ -52,9 +61,21 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       }
     };
 
-    const interval = setInterval(updateSimulation, 10000); // Checa a cada 10 segundos
+    const interval = setInterval(updateSimulation, 10000);
     return () => clearInterval(interval);
   }, [tokenA, tokenB, dexA, dexB, isPaused, lastExecutionTime, isExecuting]);
+
+  const addTransaction = (type: 'execute' | 'withdraw', status: 'success' | 'failed', amount?: string, error?: string) => {
+    const newTransaction: Transaction = {
+      id: Math.random().toString(36).substr(2, 9),
+      timestamp: Date.now(),
+      type,
+      status,
+      amount,
+      error
+    };
+    setTransactions(prev => [newTransaction, ...prev]);
+  };
 
   const handleSimulate = async () => {
     if (isPaused) {
@@ -96,8 +117,11 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
         "1",
         signer
       );
+      addTransaction('execute', 'success', simulationResult?.expectedProfit?.toFixed(2));
+      toast.success("Arbitragem executada com sucesso!");
     } catch (error) {
       console.error("Erro ao executar arbitragem:", error);
+      addTransaction('execute', 'failed', undefined, error instanceof Error ? error.message : 'Erro desconhecido');
       toast.error("Erro ao executar arbitragem");
     } finally {
       setIsExecuting(false);
@@ -115,8 +139,11 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       const signer = await provider.getSigner();
       
       await withdrawProfit(tokenA, signer);
+      addTransaction('withdraw', 'success');
+      toast.success("Lucro retirado com sucesso!");
     } catch (error) {
       console.error("Erro ao retirar lucro:", error);
+      addTransaction('withdraw', 'failed', undefined, error instanceof Error ? error.message : 'Erro desconhecido');
       toast.error("Erro ao retirar lucro");
     }
   };
@@ -163,6 +190,10 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
               </div>
             </div>
           )}
+          <div className="space-y-2">
+            <h3 className="font-medium text-sm text-muted-foreground">Histórico de Transações</h3>
+            <TransactionList transactions={transactions} />
+          </div>
           {prices[tokenA]?.length > 0 && (
             <div className="space-y-2">
               <h3 className="font-medium text-sm text-muted-foreground">{tokenA} Price</h3>
