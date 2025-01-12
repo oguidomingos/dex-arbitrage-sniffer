@@ -41,6 +41,31 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
   const [estimatedProfit, setEstimatedProfit] = useState<number | null>(null);
   const prices = useTokenPrices([tokenA, tokenB]);
 
+  const isOpportunityProfitable = (result: any) => {
+    // Considerando custos de gas e slippage
+    const gasEstimate = 0.01; // Estimativa de custo de gas em ETH
+    const slippagePercentage = 0.005; // 0.5% de slippage
+    
+    if (!result || !result.expectedProfit) return false;
+    
+    const slippageCost = result.initialAmount * slippagePercentage;
+    const minimumProfitThreshold = 0.02; // 2% de lucro mínimo
+    
+    const netProfit = result.expectedProfit - slippageCost - gasEstimate;
+    const profitPercentage = (netProfit / result.initialAmount) * 100;
+    
+    console.log("Análise de Rentabilidade:", {
+      expectedProfit: result.expectedProfit,
+      slippageCost,
+      gasEstimate,
+      netProfit,
+      profitPercentage: `${profitPercentage.toFixed(2)}%`,
+      isRentável: profitPercentage > minimumProfitThreshold
+    });
+    
+    return profitPercentage > minimumProfitThreshold;
+  };
+
   useEffect(() => {
     const updateSimulation = async () => {
       if (isPaused) {
@@ -62,13 +87,13 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
         setSimulationResult(result);
         setEstimatedProfit(result.expectedProfit);
         
-        if (result.expectedProfit > 0 && !isExecuting && !isPaused) {
+        if (isOpportunityProfitable(result) && !isExecuting && !isPaused) {
           console.log("Oportunidade lucrativa encontrada!");
           addTransaction('simulation', 'success', undefined, undefined, result.expectedProfit);
           setShowOpportunityDialog(true);
           setLastExecutionTime(currentTime);
         } else {
-          console.log("Sem oportunidade lucrativa neste momento");
+          console.log("Sem oportunidade lucrativa neste momento - Custos muito altos ou lucro insuficiente");
         }
       } catch (error) {
         console.error("Erro na simulação:", error);
@@ -77,7 +102,6 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       }
     };
 
-    // Alterando o intervalo para 1 segundo (1000ms)
     const interval = setInterval(updateSimulation, 1000);
     return () => clearInterval(interval);
   }, [tokenA, tokenB, dexA, dexB, isPaused, lastExecutionTime, isExecuting]);
@@ -212,7 +236,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
                 <ArrowRightLeft className="h-4 w-4 text-polygon-purple inline mx-2" />
                 <span>{dexB}</span>
               </div>
-              {estimatedProfit !== null && estimatedProfit > 0 && (
+              {estimatedProfit !== null && isOpportunityProfitable(simulationResult) && (
                 <div className="flex items-center gap-1 text-green-500 bg-green-500/10 px-3 py-1 rounded-full">
                   <TrendingUp className="h-4 w-4" />
                   <span>+{estimatedProfit.toFixed(2)} USDC</span>
