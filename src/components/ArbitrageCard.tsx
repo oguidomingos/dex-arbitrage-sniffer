@@ -38,26 +38,38 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
 
   useEffect(() => {
     const updateSimulation = async () => {
-      if (isPaused) return;
+      if (isPaused) {
+        console.log("Scanner está pausado");
+        return;
+      }
       
       const currentTime = Date.now();
       const oneMinute = 60000;
       
       if (currentTime - lastExecutionTime < oneMinute) {
+        console.log("Aguardando tempo mínimo entre execuções...");
         return;
       }
       
       try {
-        console.log("Executando simulação...", new Date().toLocaleTimeString());
+        console.log("Iniciando simulação...", new Date().toLocaleTimeString());
         const result = await simulateFlashloan(1, tokenA, tokenB, dexA, dexB);
+        console.log("Resultado da simulação:", {
+          lucroEsperado: result.expectedProfit,
+          valorInicial: result.initialAmount,
+          valorFinal: result.initialAmount + result.expectedProfit
+        });
         setSimulationResult(result);
         
         if (result.expectedProfit > 0 && !isExecuting && !isPaused) {
+          console.log("Oportunidade lucrativa encontrada! Executando arbitragem...");
           handleExecuteArbitrage();
           setLastExecutionTime(currentTime);
+        } else {
+          console.log("Sem oportunidade lucrativa neste momento");
         }
       } catch (error) {
-        console.error("Erro ao atualizar simulação:", error);
+        console.error("Erro detalhado na simulação:", error);
       }
     };
 
@@ -97,19 +109,29 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
 
   const handleExecuteArbitrage = async () => {
     if (isPaused) {
+      console.log("Execução bloqueada: scanner pausado");
       toast.error("Scanner está pausado");
       return;
     }
 
     if (!window.ethereum) {
+      console.log("MetaMask não encontrada");
       toast.error("Por favor, instale a MetaMask");
       return;
     }
 
     setIsExecuting(true);
     try {
+      console.log("Iniciando execução da arbitragem...");
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
+      
+      console.log("Parâmetros da arbitragem:", {
+        tokenA,
+        tokenB,
+        amount: "1",
+        signer: await signer.getAddress()
+      });
       
       await executeArbitrage(
         tokenA,
@@ -117,10 +139,11 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
         "1",
         signer
       );
+      console.log("Arbitragem executada com sucesso!");
       addTransaction('execute', 'success', simulationResult?.expectedProfit?.toFixed(2));
       toast.success("Arbitragem executada com sucesso!");
     } catch (error) {
-      console.error("Erro ao executar arbitragem:", error);
+      console.error("Erro detalhado na execução da arbitragem:", error);
       addTransaction('execute', 'failed', undefined, error instanceof Error ? error.message : 'Erro desconhecido');
       toast.error("Erro ao executar arbitragem");
     } finally {
@@ -130,19 +153,27 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
 
   const handleWithdrawProfit = async () => {
     if (!window.ethereum) {
+      console.log("MetaMask não encontrada");
       toast.error("Por favor, instale a MetaMask");
       return;
     }
 
     try {
+      console.log("Iniciando retirada de lucro...");
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       
+      console.log("Parâmetros da retirada:", {
+        tokenA,
+        signer: await signer.getAddress()
+      });
+      
       await withdrawProfit(tokenA, signer);
+      console.log("Lucro retirado com sucesso!");
       addTransaction('withdraw', 'success');
       toast.success("Lucro retirado com sucesso!");
     } catch (error) {
-      console.error("Erro ao retirar lucro:", error);
+      console.error("Erro detalhado na retirada:", error);
       addTransaction('withdraw', 'failed', undefined, error instanceof Error ? error.message : 'Erro desconhecido');
       toast.error("Erro ao retirar lucro");
     }
