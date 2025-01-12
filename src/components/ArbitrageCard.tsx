@@ -85,11 +85,13 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       console.log("Resultado da simulação:", result);
       setSimulationResult(result);
       setShowSimulationDialog(true);
-      addTransaction('simulation', 'success', undefined, undefined, undefined, result.expectedProfit);
       
-      toast.success("Simulação concluída com sucesso!", {
-        description: `Lucro estimado: ${result.expectedProfit.toFixed(2)} USDC`
-      });
+      if (result && result.expectedProfit) {
+        addTransaction('simulation', 'success', undefined, undefined, undefined, result.expectedProfit);
+        toast.success("Simulação concluída com sucesso!", {
+          description: `Lucro estimado: ${result.expectedProfit.toFixed(2)} USDC`
+        });
+      }
     } catch (error) {
       console.error("Erro na simulação:", error);
       addTransaction('simulation', 'failed', undefined, undefined, error instanceof Error ? error.message : 'Erro desconhecido');
@@ -166,13 +168,15 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
         }
         
         if (isOpportunityProfitable(result)) {
-          addTransaction('simulation', 'success', undefined, undefined, undefined, result.expectedProfit);
-          setShowSimulationDialog(true);
-          
-          toast.success(`Oportunidade encontrada: ${tokenA}/${tokenB}`, {
-            description: `Lucro esperado: ${result.expectedProfit.toFixed(2)} USDC`,
-            duration: 3000
-          });
+          if (result && result.expectedProfit) {
+            addTransaction('simulation', 'success', undefined, undefined, undefined, result.expectedProfit);
+            setShowSimulationDialog(true);
+            
+            toast.success(`Oportunidade encontrada: ${tokenA}/${tokenB}`, {
+              description: `Lucro esperado: ${result.expectedProfit.toFixed(2)} USDC`,
+              duration: 3000
+            });
+          }
           
           setLastExecutionTime(currentTime);
         }
