@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 
 // Array of RPC providers for redundancy
 const RPC_PROVIDERS = [
-  `https://polygon-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY || 'eR0aPlWHb-7fYj7M25rCKh_XKTZZlQEY'}`,
+  `https://polygon-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY || 'GassGtbTckoQXWh_D48Ksf25xTqXJdJU'}`,
   'https://polygon-rpc.com',
   'https://rpc-mainnet.matic.network',
   'https://rpc-mainnet.maticvigil.com'
