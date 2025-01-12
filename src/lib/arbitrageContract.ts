@@ -15,6 +15,11 @@ const ARBITRAGE_ABI = [
   "function withdrawProfit(address token) external"
 ];
 
+const ERC20_ABI = [
+  "function approve(address spender, uint256 amount) external returns (bool)",
+  "function allowance(address owner, address spender) external view returns (uint256)"
+];
+
 const getTokenAddress = (token: string): string => {
   switch (token.toUpperCase()) {
     case 'MATIC':
@@ -28,6 +33,51 @@ const getTokenAddress = (token: string): string => {
         return token;
       }
       throw new Error(`Token não suportado: ${token}`);
+  }
+};
+
+const checkAndApproveToken = async (
+  tokenAddress: string,
+  signer: ethers.Signer,
+  amount: bigint
+): Promise<boolean> => {
+  try {
+    if (tokenAddress === MATIC_ADDRESS) return true; // MATIC nativo não precisa de aprovação
+    
+    const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
+    const signerAddress = await signer.getAddress();
+    
+    console.log('Verificando aprovação para:', {
+      token: tokenAddress,
+      owner: signerAddress,
+      spender: ARBITRAGE_CONTRACT_ADDRESS
+    });
+
+    const allowance = await tokenContract.allowance(signerAddress, ARBITRAGE_CONTRACT_ADDRESS);
+    
+    if (allowance >= amount) {
+      console.log('Aprovação já existente:', allowance.toString());
+      return true;
+    }
+
+    console.log('Solicitando aprovação para:', amount.toString());
+    const approveTx = await tokenContract.approve(
+      ARBITRAGE_CONTRACT_ADDRESS,
+      ethers.MaxUint256, // Aprova o máximo possível para evitar futuras aprovações
+      {
+        gasLimit: 100000n,
+        maxFeePerGas: ethers.parseUnits('50', 'gwei'),
+        maxPriorityFeePerGas: ethers.parseUnits('1.5', 'gwei')
+      }
+    );
+
+    await approveTx.wait(1);
+    console.log('Aprovação concluída');
+    return true;
+  } catch (error) {
+    console.error('Erro ao aprovar token:', error);
+    toast.error('Erro ao aprovar token. Por favor, tente novamente.');
+    return false;
   }
 };
 
@@ -47,6 +97,15 @@ export const executeRealArbitrage = async (
     const amountInWei = ethers.parseUnits(amount, 6);
     const tokenAAddress = getTokenAddress(tokenA);
     const tokenBAddress = getTokenAddress(tokenB);
+    
+    // Verifica e aprova os tokens necessários
+    const approvalNeeded = [USDC_ADDRESS, tokenAAddress, tokenBAddress];
+    for (const tokenAddress of approvalNeeded) {
+      const approved = await checkAndApproveToken(tokenAddress, signer, amountInWei);
+      if (!approved) {
+        throw new Error('Falha na aprovação dos tokens');
+      }
+    }
     
     console.log('Executing arbitrage with params:', {
       tokenA: tokenAAddress,
