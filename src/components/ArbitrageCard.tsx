@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { PriceChart } from "./PriceChart";
 import { TransactionList } from "./TransactionList";
+import { LogDisplay } from "./LogDisplay";
 import { useTokenPrices } from "@/hooks/useTokenPrices";
 import { ArrowRightLeft, Wallet, RefreshCcw, PiggyBank } from "lucide-react";
 import { ethers } from "ethers";
@@ -225,6 +226,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
             <h3 className="font-medium text-sm text-muted-foreground">Histórico de Transações</h3>
             <TransactionList transactions={transactions} />
           </div>
+          <LogDisplay />
           {prices[tokenA]?.length > 0 && (
             <div className="space-y-2">
               <h3 className="font-medium text-sm text-muted-foreground">{tokenA} Price</h3>
