@@ -21,17 +21,22 @@ export const simulateFlashloan = async (
 ): Promise<SimulationResult> => {
   try {
     // Simulação simplificada
-    const flashloanAmount = 10000; // Simulando um flashloan de 10000 USDC
-    const slippage = 0.003; // 0.3% de slippage por operação
+    const flashloanAmount = initialAmount * 50; // Flashloan de 50x o valor inicial
+    const slippage = 0.001; // 0.1% de slippage por operação
+    const profitPercentage = 0.005; // 0.5% de lucro esperado
     
-    // Simulação das trocas
+    // Simulação das trocas considerando o lucro esperado
     const amountWithFlashloan = initialAmount + flashloanAmount;
-    const firstSwap = amountWithFlashloan * (1 - slippage);
-    const secondSwap = firstSwap * (1 - slippage);
+    const expectedFinalAmount = amountWithFlashloan * (1 + profitPercentage);
     
-    // Calcula lucro após pagar a taxa do flashloan (0.09% na Aave v3)
+    // Calcula o valor final após slippage nas duas operações
+    const afterSlippage = expectedFinalAmount * (1 - slippage) * (1 - slippage);
+    
+    // Calcula a taxa do flashloan (0.09% na Aave v3)
     const flashloanFee = flashloanAmount * 0.0009;
-    const finalAmount = secondSwap - flashloanAmount - flashloanFee;
+    
+    // Calcula o lucro final após pagar o flashloan e taxas
+    const finalAmount = afterSlippage - flashloanAmount - flashloanFee;
     const profit = finalAmount - initialAmount;
 
     return {
