@@ -9,20 +9,17 @@ export const TESTNET_ADDRESSES = {
   WETH: "0x3C68CE8504087f89c640D02d133646d98e64ddd9"       // Mumbai WETH
 };
 
-// Mumbai network configuration com dados oficiais da Polygon
+// Mumbai network configuration com formato específico para MetaMask
 const MUMBAI_NETWORK = {
-  chainId: '0x13881', // 80001 in hex
+  chainId: '0x13881',
   chainName: 'Mumbai',
   nativeCurrency: {
     name: 'MATIC',
     symbol: 'MATIC',
     decimals: 18
   },
-  rpcUrls: [
-    'https://polygon-mumbai-bor.publicnode.com',
-    'https://polygon-testnet.public.blastapi.io'
-  ],
-  blockExplorerUrls: ['https://mumbai.polygonscan.com/']
+  rpcUrls: ['https://polygon-mumbai-bor.publicnode.com'],
+  blockExplorerUrls: ['https://mumbai.polygonscan.com']
 };
 
 export const validateTestnetSetup = async () => {
@@ -47,12 +44,13 @@ export const validateTestnetSetup = async () => {
     const network = await provider.getNetwork();
     
     if (network.chainId !== 80001n) {
-      console.log("Dados para adicionar rede manualmente:", {
-        ...MUMBAI_NETWORK,
-        chainId: "80001 (0x13881)",
-        rpcUrls: MUMBAI_NETWORK.rpcUrls.join(" ou "),
-        blockExplorer: MUMBAI_NETWORK.blockExplorerUrls[0]
-      });
+      console.log("=== DADOS PARA ADICIONAR REDE MUMBAI MANUALMENTE ===");
+      console.log("Nome da Rede:", MUMBAI_NETWORK.chainName);
+      console.log("Nova URL RPC:", MUMBAI_NETWORK.rpcUrls[0]);
+      console.log("ID da Cadeia:", "80001 (0x13881)");
+      console.log("Símbolo da Moeda:", MUMBAI_NETWORK.nativeCurrency.symbol);
+      console.log("URL do Explorador:", MUMBAI_NETWORK.blockExplorerUrls[0]);
+      console.log("============================================");
       
       toast.error("Por favor, adicione a rede Mumbai manualmente no MetaMask usando os dados mostrados no console", {
         duration: 10000
@@ -85,7 +83,6 @@ export const getTestTokens = async () => {
     const provider = new ethers.BrowserProvider(window.ethereum);
     const signer = await provider.getSigner();
 
-    // Links úteis para faucets
     console.log("Links para faucets de teste:");
     console.log("MATIC Faucet: https://faucet.polygon.technology/");
     console.log("USDC Faucet: https://calibration-faucet.filswan.com/");
