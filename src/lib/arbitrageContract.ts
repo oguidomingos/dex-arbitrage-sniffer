@@ -1,10 +1,12 @@
 import { ethers } from 'ethers';
 import { toast } from 'sonner';
 
-const WETH_ADDRESS = "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619";
-const MATIC_ADDRESS = "0x0000000000000000000000000000000000001010";
+// Endereços dos tokens na rede Polygon
+const USDC_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
+const MATIC_ADDRESS = "0x0000000000000000000000000000000000001010"; // Endereço nativo do MATIC
 
-const ARBITRAGE_CONTRACT_ADDRESS = "0xd6B6C965aAC635B626f8fcF75785645ed6CbbDB5";
+// Endereço do contrato de arbitragem na Polygon
+const ARBITRAGE_CONTRACT_ADDRESS = "0xd6B6C965aAC635B626f8fcF75785645ed6CbbDB5"; // Endereço do contrato existente
 
 const ARBITRAGE_ABI = [
   "function requestFlashLoan(address token, uint256 amount, address tokenA, address tokenB) external",
