@@ -1,29 +1,47 @@
 import { ethers } from 'ethers';
 import { toast } from 'sonner';
 
-// Array of RPC providers for redundancy
+// Array of RPC providers for redundancy with different weights
 const RPC_PROVIDERS = [
-  `https://polygon-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY || 'GassGtbTckoQXWh_D48Ksf25xTqXJdJU'}`,
-  'https://polygon-rpc.com',
-  'https://rpc-mainnet.matic.network',
-  'https://rpc-mainnet.maticvigil.com'
+  {
+    url: `https://polygon-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY || 'GassGtbTckoQXWh_D48Ksf25xTqXJdJU'}`,
+    weight: 1, // Lower weight for Alchemy due to rate limits
+  },
+  {
+    url: 'https://polygon-rpc.com',
+    weight: 3,
+  },
+  {
+    url: 'https://rpc-mainnet.matic.network',
+    weight: 3,
+  },
+  {
+    url: 'https://rpc-mainnet.maticvigil.com',
+    weight: 3,
+  }
 ];
 
 let currentProviderIndex = 0;
 let lastProviderSwitch = Date.now();
-const PROVIDER_SWITCH_COOLDOWN = 1000; // 1 second cooldown
+const PROVIDER_SWITCH_COOLDOWN = 2000; // 2 seconds cooldown
 const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000; // 1 second delay between retries
+const RETRY_DELAY = 2000; // 2 seconds delay between retries
+const RATE_LIMIT_CODES = [429, -32005]; // Common rate limit error codes
+
+// Create weighted provider list
+const weightedProviders = RPC_PROVIDERS.flatMap(provider => 
+  Array(provider.weight).fill(provider.url)
+);
 
 const createProvider = (url: string) => {
   return new ethers.JsonRpcProvider(url, {
-    chainId: 137, // Polygon mainnet
+    chainId: 137,
     name: 'polygon'
   });
 };
 
-// Initialize providers
-let providers = RPC_PROVIDERS.map(url => createProvider(url));
+// Initialize providers with weighted distribution
+let providers = weightedProviders.map(url => createProvider(url));
 let currentProvider = providers[0];
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -41,6 +59,26 @@ const getNextProvider = async () => {
   return currentProvider;
 };
 
+const isRateLimitError = (error: any): boolean => {
+  if (!error) return false;
+  
+  // Check for specific rate limit error codes
+  if (error.code && RATE_LIMIT_CODES.includes(error.code)) return true;
+  
+  // Check error message for rate limit indicators
+  if (error.message && (
+    error.message.includes('rate limit') ||
+    error.message.includes('too many requests') ||
+    error.message.includes('exceeded') ||
+    error.message.includes('throttled')
+  )) return true;
+  
+  // Check HTTP status code
+  if (error.status === 429) return true;
+  
+  return false;
+};
+
 export const provider = new Proxy({} as ethers.Provider, {
   get: (target, prop) => {
     const provider = currentProvider;
@@ -52,19 +90,20 @@ export const provider = new Proxy({} as ethers.Provider, {
         
         for (let retry = 0; retry < MAX_RETRIES; retry++) {
           try {
-            return await value.apply(provider, args);
+            const result = await value.apply(provider, args);
+            return result;
           } catch (error: any) {
             lastError = error;
+            console.error(`Provider error (attempt ${retry + 1}/${MAX_RETRIES}):`, error);
             
-            // Check if it's a rate limit error (429)
-            if (error?.status === 429 || error?.code === 429) {
+            if (isRateLimitError(error)) {
               console.log(`Rate limit hit on provider ${currentProviderIndex + 1}, switching...`);
               currentProvider = await getNextProvider();
               await delay(RETRY_DELAY);
               continue;
             }
             
-            // For other errors, throw immediately
+            // For non-rate-limit errors, throw immediately
             throw error;
           }
         }
