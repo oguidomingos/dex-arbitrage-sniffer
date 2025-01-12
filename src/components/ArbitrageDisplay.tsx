@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button"; // Add this import
+import { Button } from "@/components/ui/button";
 import { ArbitrageHeader } from "./arbitrage/ArbitrageHeader";
 import { ArbitrageMetrics } from "./arbitrage/ArbitrageMetrics";
 import { ArbitrageActions } from "./arbitrage/ArbitrageActions";
@@ -58,6 +58,8 @@ export const ArbitrageDisplay = ({
 }: ArbitrageDisplayProps) => {
   const [polBalance, setPolBalance] = useState<string | null>(null);
   const [selectedView, setSelectedView] = useState<'metrics' | 'chart' | 'history'>('metrics');
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [walletBalance, setWalletBalance] = useState<string | null>(null);
 
   const checkPolBalance = async () => {
     if (window.ethereum) {
@@ -79,6 +81,22 @@ export const ArbitrageDisplay = ({
     return "0";
   };
 
+  const checkWalletDetails = async () => {
+    if (window.ethereum) {
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const accounts = await provider.send("eth_accounts", []);
+        if (accounts.length > 0) {
+          setWalletAddress(accounts[0]);
+          const balance = await provider.getBalance(accounts[0]);
+          setWalletBalance(ethers.formatEther(balance));
+        }
+      } catch (error) {
+        console.error("Error checking wallet details:", error);
+      }
+    }
+  };
+
   const checkRequirements = async () => {
     if (!window.ethereum) {
       toast.error("Por favor, instale a MetaMask");
@@ -96,7 +114,11 @@ export const ArbitrageDisplay = ({
 
   useEffect(() => {
     checkPolBalance();
-    const interval = setInterval(checkPolBalance, 10000);
+    checkWalletDetails();
+    const interval = setInterval(() => {
+      checkPolBalance();
+      checkWalletDetails();
+    }, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -120,7 +142,7 @@ export const ArbitrageDisplay = ({
     (percentDiff > 0 ? (flashloanAmount * (percentDiff / 100)) - flashloanFee - (gasCost * getTokenPrice('MATIC')) : 0);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <Card className="w-full bg-[#1A1F2C] border-2 border-polygon-purple/20 hover:border-polygon-purple/50 transition-all duration-300 shadow-lg hover:shadow-polygon-purple/20">
         <ArbitrageHeader
           tokenA={tokenA}
@@ -132,8 +154,26 @@ export const ArbitrageDisplay = ({
           estimatedProfit={estimatedProfit}
           polBalance={polBalance}
         />
-        <CardContent className="space-y-4">
-          <div className="flex gap-2 mb-4">
+        
+        <CardContent className="space-y-6 p-6">
+          {/* Wallet Info */}
+          <div className="bg-black/20 p-4 rounded-lg space-y-2">
+            <h3 className="text-sm font-medium text-muted-foreground">Carteira Conectada</h3>
+            <div className="flex flex-col gap-2">
+              <p className="text-sm">
+                Endereço: {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Não conectado'}
+              </p>
+              <p className="text-sm">
+                Saldo: {walletBalance ? `${Number(walletBalance).toFixed(4)} MATIC` : '0 MATIC'}
+              </p>
+              <p className="text-sm">
+                POL: {polBalance ? `${Number(polBalance).toFixed(4)} POL` : '0 POL'}
+              </p>
+            </div>
+          </div>
+
+          {/* View Selection */}
+          <div className="flex gap-2">
             <Button
               variant={selectedView === 'metrics' ? 'default' : 'outline'}
               onClick={() => setSelectedView('metrics')}
@@ -157,52 +197,60 @@ export const ArbitrageDisplay = ({
             </Button>
           </div>
 
-          {selectedView === 'metrics' && (
-            <ArbitrageMetrics
-              tokenA={tokenA}
-              tokenB={tokenB}
-              dexA={dexA}
-              dexB={dexB}
-              priceA={priceA}
-              priceB={priceB}
-              priceDiff={priceDiff}
-              percentDiff={percentDiff}
-              flashloanAmount={flashloanAmount}
-              flashloanFee={flashloanFee}
-              gasCost={gasCost}
-              expectedProfit={calculatedProfit}
-              isLoading={isSimulating}
-            />
-          )}
+          {/* Content based on selected view */}
+          <div className="min-h-[400px]">
+            {selectedView === 'metrics' && (
+              <ArbitrageMetrics
+                tokenA={tokenA}
+                tokenB={tokenB}
+                dexA={dexA}
+                dexB={dexB}
+                priceA={priceA}
+                priceB={priceB}
+                priceDiff={priceDiff}
+                percentDiff={percentDiff}
+                flashloanAmount={flashloanAmount}
+                flashloanFee={flashloanFee}
+                gasCost={gasCost}
+                expectedProfit={calculatedProfit}
+                isLoading={isSimulating}
+              />
+            )}
 
-          {selectedView === 'chart' && (
-            <div className="space-y-4">
-              {prices[tokenA]?.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">{tokenA} Price</h3>
-                  <PriceChart data={prices[tokenA]} token={tokenA} />
-                </div>
-              )}
-              {prices[tokenB]?.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">{tokenB} Price</h3>
-                  <PriceChart data={prices[tokenB]} token={tokenB} />
-                </div>
-              )}
-            </div>
-          )}
+            {selectedView === 'chart' && (
+              <div className="space-y-6">
+                {prices[tokenA]?.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">{tokenA} Price</h3>
+                    <div className="bg-black/20 p-4 rounded-lg">
+                      <PriceChart data={prices[tokenA]} token={tokenA} />
+                    </div>
+                  </div>
+                )}
+                {prices[tokenB]?.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">{tokenB} Price</h3>
+                    <div className="bg-black/20 p-4 rounded-lg">
+                      <PriceChart data={prices[tokenB]} token={tokenB} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
-          {selectedView === 'history' && (
-            <TransactionHistory 
-              transactions={transactions}
-              prices={prices}
-              tokenA={tokenA}
-              tokenB={tokenB}
-              showLogs={false}
-              onTxClick={(txHash) => window.open(`https://polygonscan.com/tx/${txHash}`, '_blank')}
-            />
-          )}
+            {selectedView === 'history' && (
+              <TransactionHistory 
+                transactions={transactions}
+                prices={prices}
+                tokenA={tokenA}
+                tokenB={tokenB}
+                showLogs={false}
+                onTxClick={(txHash) => window.open(`https://polygonscan.com/tx/${txHash}`, '_blank')}
+              />
+            )}
+          </div>
         </CardContent>
+
         <ArbitrageActions
           isSimulating={isSimulating}
           isPaused={isPaused}
