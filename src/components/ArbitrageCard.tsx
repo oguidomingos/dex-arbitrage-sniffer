@@ -15,9 +15,10 @@ interface ArbitrageCardProps {
   profit: number;
   dexA: string;
   dexB: string;
+  isPaused: boolean;
 }
 
-export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB }: ArbitrageCardProps) => {
+export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: ArbitrageCardProps) => {
   const [isSimulating, setIsSimulating] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
   const [simulationResult, setSimulationResult] = useState<any>(null);
@@ -25,12 +26,14 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB }: ArbitrageC
 
   useEffect(() => {
     const updateSimulation = async () => {
+      if (isPaused) return; // Não executa se estiver pausado
+      
       try {
         const result = await simulateFlashloan(1, tokenA, tokenB, dexA, dexB);
         setSimulationResult(result);
         
-        // Auto-execute if profitable
-        if (result.expectedProfit > 0 && !isExecuting) {
+        // Auto-execute if profitable and not paused
+        if (result.expectedProfit > 0 && !isExecuting && !isPaused) {
           handleExecuteArbitrage();
         }
       } catch (error) {
@@ -38,12 +41,16 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB }: ArbitrageC
       }
     };
 
-    updateSimulation();
     const interval = setInterval(updateSimulation, 1000);
     return () => clearInterval(interval);
-  }, [tokenA, tokenB, dexA, dexB]);
+  }, [tokenA, tokenB, dexA, dexB, isPaused]);
 
   const handleSimulate = async () => {
+    if (isPaused) {
+      toast.error("Scanner está pausado");
+      return;
+    }
+    
     setIsSimulating(true);
     try {
       const result = await simulateFlashloan(1, tokenA, tokenB, dexA, dexB);
@@ -57,6 +64,11 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB }: ArbitrageC
   };
 
   const handleExecuteArbitrage = async () => {
+    if (isPaused) {
+      toast.error("Scanner está pausado");
+      return;
+    }
+
     if (!window.ethereum) {
       toast.error("Por favor, instale a MetaMask");
       return;
@@ -161,7 +173,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB }: ArbitrageC
       <CardFooter className="flex gap-2">
         <Button 
           onClick={handleSimulate}
-          disabled={isSimulating}
+          disabled={isSimulating || isPaused}
           className="flex-1 bg-polygon-purple hover:bg-polygon-purple/90 transition-colors"
         >
           <RefreshCcw className="h-4 w-4 mr-2" />
