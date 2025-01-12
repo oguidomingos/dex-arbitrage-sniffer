@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 const USDC_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
 const WETH_ADDRESS = "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619";
 
-// Endereço real do contrato de arbitragem na Polygon
+// Endereço do contrato de arbitragem na Polygon
 const ARBITRAGE_CONTRACT_ADDRESS = "0xd6B6C965aAC635B626f8fcF75785645ed6CbbDB5";
 
 const ARBITRAGE_ABI = [
@@ -20,11 +20,9 @@ export const executeArbitrage = async (
   signer: ethers.Signer
 ) => {
   try {
-    // Converte os símbolos dos tokens para endereços reais
     const tokenAAddress = tokenA === 'USDC' ? USDC_ADDRESS : WETH_ADDRESS;
     const tokenBAddress = tokenB === 'USDC' ? USDC_ADDRESS : WETH_ADDRESS;
 
-    // Verifica se o endereço do contrato é válido
     if (!ethers.isAddress(ARBITRAGE_CONTRACT_ADDRESS)) {
       throw new Error("Endereço do contrato inválido");
     }
@@ -35,15 +33,21 @@ export const executeArbitrage = async (
       signer
     );
 
-    // Calcula o valor em wei baseado no token
     const decimals = tokenA === 'USDC' ? 6 : 18;
     const amountInWei = ethers.parseUnits(amount, decimals);
+
+    // Configurações agressivas de gás
+    const gasPrice = await signer.provider?.getFeeData();
+    const maxPriorityFeePerGas = gasPrice?.maxPriorityFeePerGas ?? ethers.parseUnits('100', 'gwei');
+    const maxFeePerGas = gasPrice?.maxFeePerGas ?? ethers.parseUnits('200', 'gwei');
 
     console.log('Executing arbitrage with params:', {
       tokenAAddress,
       tokenBAddress,
       amountInWei: amountInWei.toString(),
-      decimals
+      decimals,
+      maxFeePerGas: maxFeePerGas.toString(),
+      maxPriorityFeePerGas: maxPriorityFeePerGas.toString()
     });
 
     const tx = await contract.requestFlashLoan(
@@ -52,12 +56,13 @@ export const executeArbitrage = async (
       tokenAAddress,
       tokenBAddress,
       { 
-        gasLimit: 3000000,
-        gasPrice: ethers.parseUnits('50', 'gwei') // Ajusta o preço do gás para garantir execução
+        maxFeePerGas: maxFeePerGas.mul(2), // Dobra o gas fee máximo
+        maxPriorityFeePerGas: maxPriorityFeePerGas.mul(2), // Dobra a prioridade
+        gasLimit: 5000000, // Aumenta o limite de gás
       }
     );
 
-    await tx.wait();
+    await tx.wait(1); // Espera apenas 1 confirmação para ser mais rápido
     toast.success("Arbitragem executada com sucesso!");
     return true;
   } catch (error) {
@@ -84,12 +89,18 @@ export const withdrawProfit = async (
       signer
     );
 
+    // Configurações agressivas de gás para retirada
+    const gasPrice = await signer.provider?.getFeeData();
+    const maxPriorityFeePerGas = gasPrice?.maxPriorityFeePerGas ?? ethers.parseUnits('100', 'gwei');
+    const maxFeePerGas = gasPrice?.maxFeePerGas ?? ethers.parseUnits('200', 'gwei');
+
     const tx = await contract.withdraw(tokenAddress, { 
-      gasLimit: 1000000,
-      gasPrice: ethers.parseUnits('50', 'gwei')
+      maxFeePerGas: maxFeePerGas.mul(2),
+      maxPriorityFeePerGas: maxPriorityFeePerGas.mul(2),
+      gasLimit: 2000000,
     });
     
-    await tx.wait();
+    await tx.wait(1);
     toast.success("Lucro retirado com sucesso!");
     return true;
   } catch (error) {
