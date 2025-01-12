@@ -1,6 +1,6 @@
 import { simulateFlashloan } from "@/lib/flashloan";
 import { executeRealArbitrage, withdrawProfit } from "@/lib/arbitrageContract";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
 import { useTokenPrices } from "@/hooks/useTokenPrices";
 import { ethers } from "ethers";
@@ -39,6 +39,8 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
   const [gasEstimate, setGasEstimate] = useState<string | null>(null);
   const [maticBalance, setMaticBalance] = useState<string>("0");
   const prices = useTokenPrices([tokenA, tokenB]);
+  const simulationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isProcessingRef = useRef(false);
 
   const checkMaticBalance = async () => {
     if (!window.ethereum) return;
@@ -59,7 +61,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
 
   const isOpportunityProfitable = (result: any): boolean => {
     if (!result || !result.expectedProfit) return false;
-    const minProfitThreshold = 0.01; // 0.01 USDC minimum profit
+    const minProfitThreshold = 0.01;
     return result.expectedProfit > minProfitThreshold;
   };
 
@@ -85,6 +87,11 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
   };
 
   const executeArbitrage = async (result: any) => {
+    if (isProcessingRef.current) {
+      console.log('Já existe uma execução em andamento, ignorando...');
+      return;
+    }
+
     if (!window.ethereum) {
       toast.error("Por favor, instale a MetaMask");
       return;
@@ -96,8 +103,10 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       return;
     }
 
-    setIsExecuting(true);
     try {
+      isProcessingRef.current = true;
+      setIsExecuting(true);
+      
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       
@@ -131,16 +140,23 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
     } finally {
       setIsExecuting(false);
       setShowSimulationDialog(false);
+      isProcessingRef.current = false;
     }
   };
 
   const handleWithdrawProfit = async () => {
+    if (isProcessingRef.current) {
+      console.log('Já existe uma operação em andamento, ignorando...');
+      return;
+    }
+
     if (!window.ethereum) {
       toast.error("Por favor, instale a MetaMask");
       return;
     }
 
     try {
+      isProcessingRef.current = true;
       console.log("Iniciando retirada de lucro para token:", tokenA);
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
@@ -165,10 +181,17 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       toast.error("Erro ao retirar lucro", {
         description: error instanceof Error ? error.message : 'Erro desconhecido'
       });
+    } finally {
+      isProcessingRef.current = false;
     }
   };
 
   const handleSimulate = async () => {
+    if (isProcessingRef.current) {
+      console.log('Já existe uma simulação em andamento, ignorando...');
+      return;
+    }
+
     if (isPaused) {
       toast.error("Scanner está pausado");
       return;
@@ -180,8 +203,10 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       return;
     }
     
-    setIsSimulating(true);
     try {
+      isProcessingRef.current = true;
+      setIsSimulating(true);
+      
       console.log("Iniciando simulação para:", { tokenA, tokenB, dexA, dexB });
       const validationError = validateArbitrageParameters(tokenA, tokenB, dexA, dexB);
       if (validationError) {
@@ -210,18 +235,19 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       });
     } finally {
       setIsSimulating(false);
+      isProcessingRef.current = false;
     }
   };
 
   useEffect(() => {
     checkMaticBalance();
-    const interval = setInterval(checkMaticBalance, 10000); // Verifica saldo a cada 10 segundos
+    const interval = setInterval(checkMaticBalance, 10000);
     return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
     const updateSimulation = async () => {
-      if (isPaused) return;
+      if (isPaused || isProcessingRef.current) return;
       
       const currentTime = Date.now();
       const oneMinute = 60000;
@@ -229,39 +255,53 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       if (currentTime - lastExecutionTime < oneMinute) {
         return;
       }
-      
-      try {
-        const validationError = validateArbitrageParameters(tokenA, tokenB, dexA, dexB);
-        if (validationError) {
-          console.error("Validation error:", validationError);
-          return;
-        }
 
-        const result = await simulateFlashloan(1, tokenA, tokenB, dexA, dexB);
-        setSimulationResult(result);
-        setEstimatedProfit(result.expectedProfit);
-        
-        if (window.ethereum) {
-          const provider = new ethers.BrowserProvider(window.ethereum);
-          const gasPrice = await provider.getFeeData();
-          const estimatedGas = ethers.formatEther(gasPrice.maxFeePerGas || 0n);
-          setGasEstimate(estimatedGas);
-        }
-        
-        if (isOpportunityProfitable(result)) {
-          console.log("Oportunidade lucrativa encontrada, executando automaticamente...");
-          await executeArbitrage(result);
-          setLastExecutionTime(currentTime);
-        }
-      } catch (error) {
-        console.error("Erro na simulação:", error);
-        setEstimatedProfit(null);
+      if (simulationTimeoutRef.current) {
+        clearTimeout(simulationTimeoutRef.current);
       }
+
+      simulationTimeoutRef.current = setTimeout(async () => {
+        try {
+          isProcessingRef.current = true;
+          const validationError = validateArbitrageParameters(tokenA, tokenB, dexA, dexB);
+          if (validationError) {
+            console.error("Validation error:", validationError);
+            return;
+          }
+
+          const result = await simulateFlashloan(1, tokenA, tokenB, dexA, dexB);
+          if (!isProcessingRef.current) return; // Check if component is still mounted
+          
+          setSimulationResult(result);
+          setEstimatedProfit(result.expectedProfit);
+          
+          if (window.ethereum) {
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const gasPrice = await provider.getFeeData();
+            const estimatedGas = ethers.formatEther(gasPrice.maxFeePerGas || 0n);
+            setGasEstimate(estimatedGas);
+          }
+          
+          if (isOpportunityProfitable(result)) {
+            console.log("Oportunidade lucrativa encontrada, executando automaticamente...");
+            await executeArbitrage(result);
+            setLastExecutionTime(currentTime);
+          }
+        } catch (error) {
+          console.error("Erro na simulação:", error);
+          setEstimatedProfit(null);
+        } finally {
+          isProcessingRef.current = false;
+        }
+      }, 1000);
     };
 
     updateSimulation();
-    const interval = setInterval(updateSimulation, 1000);
-    return () => clearInterval(interval);
+    return () => {
+      if (simulationTimeoutRef.current) {
+        clearTimeout(simulationTimeoutRef.current);
+      }
+    };
   }, [tokenA, tokenB, dexA, dexB, isPaused, lastExecutionTime]);
 
   return (
