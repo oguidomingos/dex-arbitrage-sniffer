@@ -15,11 +15,11 @@ const PROVIDER_SWITCH_COOLDOWN = 1000; // 1 second cooldown
 
 const createProvider = (url: string) => {
   return new ethers.JsonRpcProvider(url, {
-    staticNetwork: ethers.Network.from(137), // Polygon mainnet
+    chainId: 137, // Polygon mainnet
+    name: 'polygon',
     polling: true,
     pollingInterval: 4000,
     batchMaxCount: 1, // Limit batch requests
-    staticNetwork: true,
   });
 };
 
