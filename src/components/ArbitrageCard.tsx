@@ -1,5 +1,5 @@
 import { simulateFlashloan } from "@/lib/flashloan";
-import { executeRealArbitrage, withdrawArbitrageProfit } from "@/lib/arbitrageContract";
+import { executeRealArbitrage, withdrawProfit } from "@/lib/arbitrageContract";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useTokenPrices } from "@/hooks/useTokenPrices";
@@ -37,7 +37,25 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
   const [showSimulationDialog, setShowSimulationDialog] = useState(false);
   const [estimatedProfit, setEstimatedProfit] = useState<number | null>(null);
   const [gasEstimate, setGasEstimate] = useState<string | null>(null);
+  const [maticBalance, setMaticBalance] = useState<string>("0");
   const prices = useTokenPrices([tokenA, tokenB]);
+
+  const checkMaticBalance = async () => {
+    if (!window.ethereum) return;
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const accounts = await provider.send("eth_accounts", []);
+      if (accounts.length > 0) {
+        const balance = await provider.getBalance(accounts[0]);
+        const formattedBalance = ethers.formatEther(balance);
+        setMaticBalance(formattedBalance);
+        return formattedBalance;
+      }
+    } catch (error) {
+      console.error("Erro ao verificar saldo de MATIC:", error);
+    }
+    return "0";
+  };
 
   const isOpportunityProfitable = (result: any): boolean => {
     if (!result || !result.expectedProfit) return false;
@@ -69,6 +87,12 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
   const executeArbitrage = async (result: any) => {
     if (!window.ethereum) {
       toast.error("Por favor, instale a MetaMask");
+      return;
+    }
+
+    const balance = await checkMaticBalance();
+    if (parseFloat(balance) < 0.1) {
+      toast.error("Saldo de MATIC insuficiente. Mínimo necessário: 0.1 MATIC");
       return;
     }
 
@@ -110,9 +134,50 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
     }
   };
 
+  const handleWithdrawProfit = async () => {
+    if (!window.ethereum) {
+      toast.error("Por favor, instale a MetaMask");
+      return;
+    }
+
+    try {
+      console.log("Iniciando retirada de lucro para token:", tokenA);
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      
+      const txHash = await withdrawArbitrageProfit(tokenA, signer);
+      console.log("Hash da transação de retirada:", txHash);
+      
+      addTransaction('withdraw', 'pending', txHash);
+      
+      // Aguarda confirmação da transação
+      const receipt = await provider.waitForTransaction(txHash);
+      console.log("Recibo da transação:", receipt);
+      
+      if (receipt.status === 1) {
+        addTransaction('withdraw', 'success', txHash);
+        toast.success("Lucro retirado com sucesso!");
+      } else {
+        throw new Error("Transação falhou");
+      }
+    } catch (error) {
+      console.error("Erro ao retirar lucro:", error);
+      addTransaction('withdraw', 'failed', undefined, undefined, error instanceof Error ? error.message : 'Erro desconhecido');
+      toast.error("Erro ao retirar lucro", {
+        description: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  };
+
   const handleSimulate = async () => {
     if (isPaused) {
       toast.error("Scanner está pausado");
+      return;
+    }
+
+    const balance = await checkMaticBalance();
+    if (parseFloat(balance) < 0.1) {
+      toast.error("Saldo de MATIC insuficiente. Mínimo necessário: 0.1 MATIC");
       return;
     }
     
@@ -149,40 +214,11 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
     }
   };
 
-  const handleWithdrawProfit = async () => {
-    if (!window.ethereum) {
-      toast.error("Por favor, instale a MetaMask");
-      return;
-    }
-
-    try {
-      console.log("Iniciando retirada de lucro para token:", tokenA);
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      
-      const txHash = await withdrawArbitrageProfit(tokenA, signer);
-      console.log("Hash da transação de retirada:", txHash);
-      
-      addTransaction('withdraw', 'pending', txHash);
-      
-      // Aguarda confirmação da transação
-      const receipt = await provider.waitForTransaction(txHash);
-      console.log("Recibo da transação:", receipt);
-      
-      if (receipt.status === 1) {
-        addTransaction('withdraw', 'success', txHash);
-        toast.success("Lucro retirado com sucesso!");
-      } else {
-        throw new Error("Transação falhou");
-      }
-    } catch (error) {
-      console.error("Erro ao retirar lucro:", error);
-      addTransaction('withdraw', 'failed', undefined, undefined, error instanceof Error ? error.message : 'Erro desconhecido');
-      toast.error("Erro ao retirar lucro", {
-        description: error instanceof Error ? error.message : 'Erro desconhecido'
-      });
-    }
-  };
+  useEffect(() => {
+    checkMaticBalance();
+    const interval = setInterval(checkMaticBalance, 10000); // Verifica saldo a cada 10 segundos
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const updateSimulation = async () => {
