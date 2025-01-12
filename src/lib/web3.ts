@@ -1,5 +1,4 @@
 import { ethers } from 'ethers';
-import { provider } from '@/lib/web3';
 
 const QUICKSWAP_ROUTER = "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff";
 const SUSHISWAP_ROUTER = "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506";
@@ -8,39 +7,66 @@ const ROUTER_ABI = [
   "function getAmountsOut(uint amountIn, address[] memory path) view returns (uint[] memory amounts)"
 ];
 
+export const getProvider = () => {
+  if (typeof window !== 'undefined' && window.ethereum) {
+    return new ethers.BrowserProvider(window.ethereum);
+  }
+  throw new Error("No ethereum provider found");
+};
+
+export const connectWallet = async () => {
+  try {
+    const provider = getProvider();
+    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    if (accounts.length > 0) {
+      return await provider.getSigner();
+    }
+    throw new Error("No accounts found");
+  } catch (error) {
+    console.error("Error connecting wallet:", error);
+    throw error;
+  }
+};
+
 export const getTokenPrice = async (tokenAddress: string): Promise<number> => {
   try {
-    const priceQuickswap = await getPriceFromDEX(QUICKSWAP_ROUTER, tokenAddress);
-    const priceSushiswap = await getPriceFromDEX(SUSHISWAP_ROUTER, tokenAddress);
+    const provider = getProvider();
+    const quickswapRouter = new ethers.Contract(QUICKSWAP_ROUTER, ROUTER_ABI, provider);
+    const sushiswapRouter = new ethers.Contract(SUSHISWAP_ROUTER, ROUTER_ABI, provider);
     
-    const avgPrice = (priceQuickswap + priceSushiswap) / 2;
+    const amountIn = ethers.parseUnits("1", 18);
+    const USDC = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"; // Polygon USDC
+
+    const priceQuickswap = await getPriceFromDEX(quickswapRouter, tokenAddress, USDC, amountIn);
+    const priceSushiswap = await getPriceFromDEX(sushiswapRouter, tokenAddress, USDC, amountIn);
+    
+    const avgPrice = Number(ethers.formatUnits((priceQuickswap + priceSushiswap) / 2n, 6));
     
     console.log(`Preços obtidos para ${tokenAddress}:`, {
-      quickswap: priceQuickswap,
-      sushiswap: priceSushiswap,
+      quickswap: ethers.formatUnits(priceQuickswap, 6),
+      sushiswap: ethers.formatUnits(priceSushiswap, 6),
       average: avgPrice
     });
     
-    return avgPrice || 0;
+    return avgPrice;
   } catch (error) {
     console.error('Error fetching token prices:', error);
     return 0;
   }
 };
 
-export const getPriceFromDEX = async (
-  dexRouter: string,
+const getPriceFromDEX = async (
+  router: ethers.Contract,
   tokenIn: string,
   tokenOut: string,
   amountIn: bigint
 ): Promise<bigint> => {
   try {
-    const path = [tokenIn, tokenOut];
-    const amounts = await dexRouter.getAmountsOut(amountIn, path);
+    const amounts = await router.getAmountsOut(amountIn, [tokenIn, tokenOut]);
     return amounts[1];
   } catch (error) {
     console.error(`Error getting price from DEX:`, error);
-    throw error;
+    return 0n;
   }
 };
 
@@ -49,6 +75,7 @@ export class PriceMonitor {
   private sushiswapRouter: ethers.Contract;
 
   constructor() {
+    const provider = getProvider();
     this.quickswapRouter = new ethers.Contract(QUICKSWAP_ROUTER, ROUTER_ABI, provider);
     this.sushiswapRouter = new ethers.Contract(SUSHISWAP_ROUTER, ROUTER_ABI, provider);
   }
@@ -62,14 +89,14 @@ export class PriceMonitor {
     expectedProfit: bigint;
     route: string[];
   }> {
-    const priceQuickswap = await this.getPriceFromDEX(
+    const priceQuickswap = await getPriceFromDEX(
       this.quickswapRouter,
       tokenA,
       tokenB,
       amount
     );
 
-    const priceSushiswap = await this.getPriceFromDEX(
+    const priceSushiswap = await getPriceFromDEX(
       this.sushiswapRouter,
       tokenA,
       tokenB,
@@ -81,7 +108,7 @@ export class PriceMonitor {
       : priceQuickswap - priceSushiswap;
 
     const gasCost = ethers.parseEther("0.01");
-    const flashLoanFee = amount * BigInt(9) / BigInt(10000);
+    const flashLoanFee = amount * 9n / 10000n; // 0.09% as bigint
 
     const netProfit = profit - gasCost - flashLoanFee;
 
