@@ -53,7 +53,6 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
     error?: string,
     profitEstimate?: number
   ) => {
-    console.log(`Adding transaction: Type=${type}, Status=${status}, Hash=${txHash}`);
     const newTransaction: Transaction = {
       id: Math.random().toString(36).substr(2, 9),
       timestamp: Date.now(),
@@ -67,7 +66,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
     setTransactions(prev => [newTransaction, ...prev].slice(0, 10));
   };
 
-  const handleExecute = async () => {
+  const executeArbitrage = async (result: any) => {
     if (!window.ethereum) {
       toast.error("Por favor, instale a MetaMask");
       return;
@@ -81,21 +80,20 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       console.log("Iniciando execução da arbitragem:", {
         tokenA,
         tokenB,
-        amount: simulationResult?.initialAmount
+        amount: result.initialAmount
       });
 
-      // Adiciona transação como pendente
       addTransaction('execute', 'pending');
 
       const success = await executeRealArbitrage(
         tokenA,
         tokenB,
-        simulationResult?.initialAmount?.toString() || "1",
+        result.initialAmount.toString(),
         signer
       );
 
       if (success) {
-        addTransaction('execute', 'success', undefined, simulationResult?.initialAmount?.toString(), undefined, simulationResult?.expectedProfit);
+        addTransaction('execute', 'success', undefined, result.initialAmount.toString(), undefined, result.expectedProfit);
         toast.success("Arbitragem executada com sucesso!");
       } else {
         throw new Error("Falha na execução da arbitragem");
@@ -129,13 +127,16 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       const result = await simulateFlashloan(1, tokenA, tokenB, dexA, dexB);
       console.log("Resultado da simulação:", result);
       setSimulationResult(result);
-      setShowSimulationDialog(true);
       
       if (result && result.expectedProfit) {
         addTransaction('simulation', 'success', undefined, undefined, undefined, result.expectedProfit);
-        toast.success("Simulação concluída com sucesso!", {
-          description: `Lucro estimado: ${result.expectedProfit.toFixed(2)} USDC`
-        });
+        
+        if (isOpportunityProfitable(result)) {
+          console.log("Oportunidade lucrativa encontrada, executando automaticamente...");
+          await executeArbitrage(result);
+        } else {
+          toast.info("Simulação concluída, mas lucro insuficiente");
+        }
       }
     } catch (error) {
       console.error("Erro na simulação:", error);
@@ -213,22 +214,13 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
         }
         
         if (isOpportunityProfitable(result)) {
-          if (result && result.expectedProfit) {
-            addTransaction('simulation', 'success', undefined, undefined, undefined, result.expectedProfit);
-            setShowSimulationDialog(true);
-            
-            toast.success(`Oportunidade encontrada: ${tokenA}/${tokenB}`, {
-              description: `Lucro esperado: ${result.expectedProfit.toFixed(2)} USDC`,
-              duration: 3000
-            });
-          }
-          
+          console.log("Oportunidade lucrativa encontrada, executando automaticamente...");
+          await executeArbitrage(result);
           setLastExecutionTime(currentTime);
         }
       } catch (error) {
         console.error("Erro na simulação:", error);
         setEstimatedProfit(null);
-        setIsSimulating(false);
       }
     };
 
@@ -245,7 +237,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
         simulationResult={simulationResult}
         isExecuting={isExecuting}
         gasEstimate={gasEstimate}
-        onExecute={handleExecute}
+        onExecute={() => executeArbitrage(simulationResult)}
       />
 
       <ArbitrageDisplay
