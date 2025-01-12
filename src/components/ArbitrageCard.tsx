@@ -73,11 +73,12 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       } catch (error) {
         console.error("Erro na simulação:", error);
         setEstimatedProfit(null);
-        setIsSimulating(false); // Reset simulation state on error
+        setIsSimulating(false);
       }
     };
 
-    const interval = setInterval(updateSimulation, 10000);
+    // Alterando o intervalo para 5 segundos (5000ms)
+    const interval = setInterval(updateSimulation, 5000);
     return () => clearInterval(interval);
   }, [tokenA, tokenB, dexA, dexB, isPaused, lastExecutionTime, isExecuting]);
 
