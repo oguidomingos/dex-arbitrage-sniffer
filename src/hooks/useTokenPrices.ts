@@ -12,7 +12,6 @@ interface TokenPrices {
 
 export const useTokenPrices = (tokens: string[]) => {
   const [prices, setPrices] = useState<TokenPrices>(() => {
-    // Inicializa o objeto de preços para cada token
     const initialPrices: TokenPrices = {};
     tokens.forEach(token => {
       initialPrices[token] = [];
@@ -20,35 +19,46 @@ export const useTokenPrices = (tokens: string[]) => {
     return initialPrices;
   });
 
+  const [lastMinute, setLastMinute] = useState<number>(() => 
+    Math.floor(Date.now() / 60000)
+  );
+
   useEffect(() => {
     const fetchPrices = async () => {
       try {
-        const newPrices: TokenPrices = {};
+        const currentMinute = Math.floor(Date.now() / 60000);
         
-        for (const token of tokens) {
-          const price = await getTokenPrice(token);
-          const timestamp = Date.now();
+        // Só registra se mudou o minuto
+        if (currentMinute > lastMinute) {
+          const newPrices: TokenPrices = {};
           
-          newPrices[token] = [
-            ...(prices[token]?.slice(-30) || []), // Mantém apenas os últimos 30 pontos
-            { timestamp, price }
-          ];
+          for (const token of tokens) {
+            const price = await getTokenPrice(token);
+            const timestamp = currentMinute * 60000; // Converte minutos para millisegundos
+            
+            newPrices[token] = [
+              ...(prices[token]?.slice(-30) || []), // Mantém últimos 30 pontos
+              { timestamp, price }
+            ];
+          }
+          
+          setPrices(prevPrices => ({
+            ...prevPrices,
+            ...newPrices
+          }));
+          
+          setLastMinute(currentMinute);
         }
-        
-        setPrices(prevPrices => ({
-          ...prevPrices,
-          ...newPrices
-        }));
       } catch (error) {
         console.error('Error fetching token prices:', error);
       }
     };
 
-    fetchPrices(); // Executa imediatamente na primeira vez
-    const interval = setInterval(fetchPrices, 1000);
+    fetchPrices();
+    const interval = setInterval(fetchPrices, 1000); // Ainda checa a cada segundo
     
     return () => clearInterval(interval);
-  }, [tokens]); // Apenas tokens como dependência
+  }, [tokens, lastMinute]); // Dependências atualizadas
 
   return prices;
 };

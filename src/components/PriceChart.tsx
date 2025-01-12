@@ -14,7 +14,10 @@ interface PriceChartProps {
 export const PriceChart = ({ data, token }: PriceChartProps) => {
   const formattedData = data.map(item => ({
     ...item,
-    time: new Date(item.timestamp).toLocaleTimeString(),
+    time: new Date(item.timestamp).toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    }),
   }));
 
   return (
