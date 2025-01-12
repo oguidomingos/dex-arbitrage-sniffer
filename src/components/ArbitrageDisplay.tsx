@@ -9,7 +9,7 @@ import { ethers } from "ethers";
 import { toast } from "sonner";
 import { PriceChart } from "./PriceChart";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRightLeft, TrendingUp, Clock, DollarSign } from "lucide-react";
+import { ArrowRightLeft, TrendingUp, Clock, DollarSign, Fuel } from "lucide-react";
 
 interface ArbitrageDisplayProps {
   tokenA: string;
@@ -55,6 +55,10 @@ export const ArbitrageDisplay = ({
   const [selectedView, setSelectedView] = useState<'metrics' | 'chart' | 'history'>('metrics');
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [walletBalance, setWalletBalance] = useState<string | null>(null);
+  const [previousPriceA, setPreviousPriceA] = useState<number>(0);
+  const [previousPriceB, setPreviousPriceB] = useState<number>(0);
+  const [gasPriceGwei, setGasPriceGwei] = useState<string>("0");
+  const [estimatedGasCost, setEstimatedGasCost] = useState<string>("0");
 
   const checkWalletDetails = async () => {
     if (window.ethereum) {
@@ -65,6 +69,15 @@ export const ArbitrageDisplay = ({
           setWalletAddress(accounts[0]);
           const balance = await provider.getBalance(accounts[0]);
           setWalletBalance(ethers.formatEther(balance));
+          
+          // Get current gas price
+          const gasPrice = await provider.getGasPrice();
+          const gasPriceInGwei = ethers.formatUnits(gasPrice, "gwei");
+          setGasPriceGwei(parseFloat(gasPriceInGwei).toFixed(2));
+          
+          // Estimate gas cost for the operation (assuming 250k gas limit)
+          const estimatedGas = gasPrice * BigInt(250000);
+          setEstimatedGasCost(ethers.formatEther(estimatedGas));
         }
       } catch (error) {
         console.error("Error checking wallet details:", error);
@@ -87,6 +100,21 @@ export const ArbitrageDisplay = ({
   const priceB = getTokenPrice(tokenB);
   const priceDiff = Math.abs(priceA - priceB);
   const percentDiff = ((priceDiff / Math.min(priceA, priceB)) * 100) || 0;
+
+  useEffect(() => {
+    if (priceA !== previousPriceA) {
+      setPreviousPriceA(priceA);
+    }
+    if (priceB !== previousPriceB) {
+      setPreviousPriceB(priceB);
+    }
+  }, [priceA, priceB]);
+
+  const getPriceChangeClass = (current: number, previous: number) => {
+    if (current > previous) return "text-green-500";
+    if (current < previous) return "text-red-500";
+    return "text-white";
+  };
 
   return (
     <Card className="w-full bg-gradient-to-br from-[#1a1c2a] to-[#1E1E2D] border-[#2B2B40] hover:border-polygon-purple/30 transition-all duration-300 shadow-lg">
@@ -113,8 +141,8 @@ export const ArbitrageDisplay = ({
           <div className="flex flex-col items-end">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-green-500" />
-              <span className="text-lg font-semibold text-green-500">
-                {estimatedProfit ? `+${estimatedProfit.toFixed(4)} USDC` : '0.00 USDC'}
+              <span className={`text-lg font-semibold ${estimatedProfit && estimatedProfit > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                {estimatedProfit ? `${estimatedProfit > 0 ? '+' : ''}${estimatedProfit.toFixed(4)} USDC` : '0.00 USDC'}
               </span>
             </div>
             <span className="text-sm text-muted-foreground mt-1">
@@ -127,13 +155,13 @@ export const ArbitrageDisplay = ({
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-black/20 rounded-lg p-4">
             <div className="text-sm text-muted-foreground mb-1">Price {tokenA}</div>
-            <div className="text-lg font-medium text-white">
+            <div className={`text-lg font-medium ${getPriceChangeClass(priceA, previousPriceA)} transition-colors duration-300`}>
               ${priceA.toFixed(4)}
             </div>
           </div>
           <div className="bg-black/20 rounded-lg p-4">
             <div className="text-sm text-muted-foreground mb-1">Price {tokenB}</div>
-            <div className="text-lg font-medium text-white">
+            <div className={`text-lg font-medium ${getPriceChangeClass(priceB, previousPriceB)} transition-colors duration-300`}>
               ${priceB.toFixed(4)}
             </div>
           </div>
@@ -152,20 +180,20 @@ export const ArbitrageDisplay = ({
           </div>
           <div className="bg-black/20 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-2">
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">24h Volume</span>
+              <Fuel className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Gas Price</span>
             </div>
             <div className="text-sm font-medium">
-              $1.2M
+              {gasPriceGwei} Gwei
             </div>
           </div>
           <div className="bg-black/20 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-2">
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Success Rate</span>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Est. Gas Cost</span>
             </div>
-            <div className="text-sm font-medium">
-              98.5%
+            <div className="text-sm font-medium text-yellow-500">
+              {parseFloat(estimatedGasCost).toFixed(4)} MATIC
             </div>
           </div>
         </div>
