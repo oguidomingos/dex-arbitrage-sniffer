@@ -234,10 +234,16 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       toast.error("Scanner está pausado");
       return;
     }
-    
+
+    if (!window.ethereum) {
+      toast.error("Por favor, instale a MetaMask");
+      return;
+    }
+
     try {
       isProcessingRef.current = true;
       setIsSimulating(true);
+      toast.info("Iniciando simulação...");
       
       console.log("Iniciando simulação para:", { tokenA, tokenB, dexA, dexB });
       const validationError = validateArbitrageParameters(tokenA, tokenB, dexA, dexB);
@@ -245,9 +251,26 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
         throw new Error(validationError);
       }
 
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const accounts = await provider.send("eth_accounts", []);
+      
+      if (accounts.length === 0) {
+        throw new Error("Por favor, conecte sua carteira MetaMask");
+      }
+
+      const balance = await provider.getBalance(accounts[0]);
+      const maticBalance = parseFloat(ethers.formatEther(balance));
+      
+      if (maticBalance < 0.1) {
+        throw new Error("Saldo de MATIC insuficiente. Mínimo necessário: 0.1 MATIC");
+      }
+
+      console.log("Iniciando simulação de flashloan...");
       const result = await simulateFlashloan(1, tokenA, tokenB, dexA, dexB);
       console.log("Resultado da simulação:", result);
+      
       setSimulationResult(result);
+      setShowSimulationDialog(true);
       
       await handleSimulationResult(result);
     } catch (error) {
