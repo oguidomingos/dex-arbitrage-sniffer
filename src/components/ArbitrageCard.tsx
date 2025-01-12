@@ -17,38 +17,26 @@ interface ArbitrageCardProps {
 export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB }: ArbitrageCardProps) => {
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulationResult, setSimulationResult] = useState<any>(null);
-  const [currentProfit, setCurrentProfit] = useState(profit);
   const prices = useTokenPrices([tokenA, tokenB]);
 
   useEffect(() => {
-    const updateProfitsAndSimulation = async () => {
+    const updateSimulation = async () => {
       try {
-        const tokenAPrice = prices[tokenA]?.[prices[tokenA]?.length - 1]?.price;
-        const tokenBPrice = prices[tokenB]?.[prices[tokenB]?.length - 1]?.price;
-        
-        if (tokenAPrice && tokenBPrice) {
-          // Atualiza o lucro estimado
-          const priceDiff = Math.abs(tokenAPrice - tokenBPrice);
-          const newProfit = (priceDiff / Math.min(tokenAPrice, tokenBPrice)) * 100;
-          setCurrentProfit(parseFloat(newProfit.toFixed(3)));
-          
-          // Simula o flashloan com os preços atuais
-          const result = await simulateFlashloan(20, tokenA, tokenB, dexA, dexB);
-          setSimulationResult(result);
-        }
+        const result = await simulateFlashloan(20, tokenA, tokenB, dexA, dexB);
+        setSimulationResult(result);
       } catch (error) {
-        console.error("Erro ao atualizar lucros e simulação:", error);
+        console.error("Erro ao atualizar simulação:", error);
       }
     };
 
     // Executa a atualização imediatamente
-    updateProfitsAndSimulation();
+    updateSimulation();
     
     // Configura o intervalo para atualizar a cada segundo
-    const interval = setInterval(updateProfitsAndSimulation, 1000);
+    const interval = setInterval(updateSimulation, 1000);
     
     return () => clearInterval(interval);
-  }, [tokenA, tokenB, dexA, dexB, prices]);
+  }, [tokenA, tokenB, dexA, dexB]);
 
   const handleSimulate = async () => {
     setIsSimulating(true);
@@ -75,7 +63,6 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB }: ArbitrageC
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          <p className="text-sm">Lucro Estimado: {currentProfit}%</p>
           {simulationResult && (
             <div className="mt-4 space-y-2 text-sm">
               <p>Entrada Inicial: {simulationResult.initialAmount} USDC</p>
