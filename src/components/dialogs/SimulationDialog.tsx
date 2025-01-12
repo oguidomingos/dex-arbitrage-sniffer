@@ -1,12 +1,12 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { ArrowRightLeft, DollarSign, TrendingUp, Check } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Check } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface SimulationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   simulationResult: any;
-  onExecute: () => void;
   isExecuting: boolean;
 }
 
@@ -14,16 +14,40 @@ export const SimulationDialog = ({
   open,
   onOpenChange,
   simulationResult,
-  onExecute,
   isExecuting,
 }: SimulationDialogProps) => {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    if (open) {
+      setProgress(0);
+      const duration = 3000; // 3 seconds
+      const interval = 10; // Update every 10ms
+      const step = (interval / duration) * 100;
+      
+      const timer = setInterval(() => {
+        setProgress(prev => {
+          const next = prev + step;
+          if (next >= 100) {
+            clearInterval(timer);
+            setTimeout(() => onOpenChange(false), 100);
+            return 100;
+          }
+          return next;
+        });
+      }, interval);
+
+      return () => clearInterval(timer);
+    }
+  }, [open, onOpenChange]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-[#1A1F2C] border-2 border-polygon-purple">
+      <DialogContent className="bg-[#1A1F2C] border-2 border-polygon-purple animate-fade-in">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-polygon-purple flex items-center gap-2">
             <Check className="h-6 w-6" />
-            Simulação Concluída
+            Oportunidade Detectada
           </DialogTitle>
           <DialogDescription asChild>
             <div className="space-y-4 mt-4">
@@ -47,13 +71,12 @@ export const SimulationDialog = ({
                   </span>
                 </div>
               </div>
-              <Button 
-                onClick={onExecute}
-                disabled={isExecuting}
-                className="w-full bg-polygon-purple hover:bg-polygon-purple/90"
-              >
-                {isExecuting ? "Executando..." : "Executar Arbitragem"}
-              </Button>
+              <div className="space-y-2">
+                <Progress value={progress} className="h-2" />
+                <p className="text-xs text-muted-foreground text-center">
+                  Executando em {((100 - progress) * 0.03).toFixed(1)}s
+                </p>
+              </div>
             </div>
           </DialogDescription>
         </DialogHeader>

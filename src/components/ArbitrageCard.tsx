@@ -7,9 +7,7 @@ import { toast } from "sonner";
 import { useTokenPrices } from "@/hooks/useTokenPrices";
 import { ArrowRightLeft, Wallet, RefreshCcw, PiggyBank, TrendingUp } from "lucide-react";
 import { ethers } from "ethers";
-import { OpportunityDialog } from "./dialogs/OpportunityDialog";
 import { SimulationDialog } from "./dialogs/SimulationDialog";
-import { TransactionHistory } from "./TransactionHistory";
 
 interface ArbitrageCardProps {
   tokenA: string;
@@ -83,25 +81,18 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
         if (isOpportunityProfitable(result) && !isExecuting) {
           addTransaction('simulation', 'success', undefined, undefined, result.expectedProfit);
           
-          // Mostrar diálogo de simulação automaticamente
           setShowSimulationDialog(true);
           
-          // Notificação toast com botão de ação
           toast.success(`Oportunidade encontrada: ${tokenA}/${tokenB}`, {
             description: `Lucro esperado: ${result.expectedProfit.toFixed(2)} USDC`,
-            action: {
-              label: "Executar",
-              onClick: () => handleExecuteArbitrage()
-            },
-            duration: 10000
+            duration: 3000
           });
           
           setLastExecutionTime(currentTime);
           
-          // Fechar diálogo após 10 segundos se não houver interação
           setTimeout(() => {
             setShowSimulationDialog(false);
-          }, 10000);
+          }, 3000);
         }
       } catch (error) {
         console.error("Erro na simulação:", error);
@@ -110,10 +101,8 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       }
     };
 
-    // Executar a primeira vez imediatamente
     updateSimulation();
     
-    // Configurar o intervalo para executar a cada segundo
     const interval = setInterval(updateSimulation, 1000);
     return () => clearInterval(interval);
   }, [tokenA, tokenB, dexA, dexB, isPaused, lastExecutionTime, isExecuting]);
@@ -150,6 +139,10 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       setShowSimulationDialog(true);
       addTransaction('simulation', 'success', undefined, undefined, result.expectedProfit);
       toast.success("Simulação concluída com sucesso!");
+      
+      setTimeout(() => {
+        setShowSimulationDialog(false);
+      }, 3000);
     } catch (error) {
       console.error("Erro na simulação:", error);
       addTransaction('simulation', 'failed', undefined, error instanceof Error ? error.message : 'Erro desconhecido');
@@ -181,7 +174,6 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       addTransaction('execute', 'success', simulationResult?.expectedProfit?.toFixed(2));
       toast.success("Arbitragem executada com sucesso!");
       setShowSimulationDialog(false);
-      setShowOpportunityDialog(false);
     } catch (error) {
       console.error("Erro detalhado na execução da arbitragem:", error);
       addTransaction('execute', 'failed', undefined, error instanceof Error ? error.message : 'Erro desconhecido');
@@ -189,7 +181,6 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
     } finally {
       setIsExecuting(false);
       setShowSimulationDialog(false);
-      setShowOpportunityDialog(false);
     }
   };
 
@@ -217,7 +208,6 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
         open={showSimulationDialog}
         onOpenChange={setShowSimulationDialog}
         simulationResult={simulationResult}
-        onExecute={handleExecuteArbitrage}
         isExecuting={isExecuting}
       />
 
@@ -247,13 +237,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <TransactionHistory
-            transactions={transactions}
-            prices={prices}
-            tokenA={tokenA}
-            tokenB={tokenB}
-            showLogs={false}
-          />
+          {/* Removed TransactionHistory component */}
         </CardContent>
         <CardFooter className="flex gap-2">
           <Button 
