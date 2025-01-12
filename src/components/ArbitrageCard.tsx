@@ -22,28 +22,39 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
   const [isSimulating, setIsSimulating] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
   const [simulationResult, setSimulationResult] = useState<any>(null);
+  const [lastExecutionTime, setLastExecutionTime] = useState(0);
   const prices = useTokenPrices([tokenA, tokenB]);
 
   useEffect(() => {
     const updateSimulation = async () => {
-      if (isPaused) return; // Não executa se estiver pausado
+      if (isPaused) return;
+      
+      const currentTime = Date.now();
+      const oneMinute = 60000; // 60 segundos em milissegundos
+      
+      // Verifica se já passou um minuto desde a última execução
+      if (currentTime - lastExecutionTime < oneMinute) {
+        return;
+      }
       
       try {
+        console.log("Executando simulação...", new Date().toLocaleTimeString());
         const result = await simulateFlashloan(1, tokenA, tokenB, dexA, dexB);
         setSimulationResult(result);
         
         // Auto-execute if profitable and not paused
         if (result.expectedProfit > 0 && !isExecuting && !isPaused) {
           handleExecuteArbitrage();
+          setLastExecutionTime(currentTime);
         }
       } catch (error) {
         console.error("Erro ao atualizar simulação:", error);
       }
     };
 
-    const interval = setInterval(updateSimulation, 1000);
+    const interval = setInterval(updateSimulation, 10000); // Checa a cada 10 segundos
     return () => clearInterval(interval);
-  }, [tokenA, tokenB, dexA, dexB, isPaused]);
+  }, [tokenA, tokenB, dexA, dexB, isPaused, lastExecutionTime, isExecuting]);
 
   const handleSimulate = async () => {
     if (isPaused) {
@@ -125,7 +136,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
           </div>
         </div>
         <CardDescription className="text-sm text-muted-foreground">
-          Arbitragem automática entre pools
+          Arbitragem automática entre pools (1x/min)
         </CardDescription>
       </CardHeader>
       <CardContent>
