@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { simulateFlashloan } from "@/lib/flashloan";
-import { executeArbitrage, withdrawProfit } from "@/lib/contractInteraction";
+import { executeRealArbitrage, withdrawArbitrageProfit } from "@/lib/arbitrageContract";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useTokenPrices } from "@/hooks/useTokenPrices";
@@ -171,12 +171,17 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       
-      await executeArbitrage(tokenA, tokenB, "1", signer);
-      addTransaction('execute', 'success', simulationResult?.expectedProfit?.toFixed(2));
-      toast.success("Arbitragem executada com sucesso!");
-      setShowSimulationDialog(false);
+      // Executa a arbitragem real
+      const success = await executeRealArbitrage(tokenA, tokenB, "1", signer);
+      
+      if (success) {
+        addTransaction('execute', 'success', simulationResult?.expectedProfit?.toFixed(2));
+        setShowSimulationDialog(false);
+      } else {
+        addTransaction('execute', 'failed', undefined, "Transação falhou");
+      }
     } catch (error) {
-      console.error("Erro detalhado na execução da arbitragem:", error);
+      console.error("Erro na execução:", error);
       addTransaction('execute', 'failed', undefined, error instanceof Error ? error.message : 'Erro desconhecido');
       toast.error("Erro ao executar arbitragem");
     } finally {
@@ -194,7 +199,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
-      await withdrawProfit(tokenA, signer);
+      await withdrawArbitrageProfit(tokenA, signer);
       addTransaction('withdraw', 'success');
       toast.success("Lucro retirado com sucesso!");
     } catch (error) {
