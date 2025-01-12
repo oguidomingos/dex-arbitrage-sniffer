@@ -1,4 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button"; // Add this import
 import { ArbitrageHeader } from "./arbitrage/ArbitrageHeader";
 import { ArbitrageMetrics } from "./arbitrage/ArbitrageMetrics";
 import { ArbitrageActions } from "./arbitrage/ArbitrageActions";
