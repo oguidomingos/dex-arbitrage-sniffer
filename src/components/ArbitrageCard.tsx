@@ -7,6 +7,7 @@ import { ethers } from "ethers";
 import { SimulationDialog } from "./dialogs/SimulationDialog";
 import { ArbitrageDisplay } from "./ArbitrageDisplay";
 import { validateArbitrageParameters } from "@/lib/validation";
+import { OpportunityDialog } from "./dialogs/OpportunityDialog";
 
 interface ArbitrageCardProps {
   tokenA: string;
@@ -35,9 +36,9 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
   const [lastExecutionTime, setLastExecutionTime] = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [showSimulationDialog, setShowSimulationDialog] = useState(false);
+  const [showOpportunityDialog, setShowOpportunityDialog] = useState(false);
   const [estimatedProfit, setEstimatedProfit] = useState<number | null>(null);
   const [gasEstimate, setGasEstimate] = useState<string | null>(null);
-  const [maticBalance, setMaticBalance] = useState<string>("0");
   const prices = useTokenPrices([tokenA, tokenB]);
   const simulationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isProcessingRef = useRef(false);
@@ -221,8 +222,8 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
         addTransaction('simulation', 'success', undefined, undefined, undefined, result.expectedProfit);
         
         if (isOpportunityProfitable(result)) {
-          console.log("Oportunidade lucrativa encontrada, executando automaticamente...");
-          await executeArbitrage(result);
+          console.log("Oportunidade lucrativa encontrada");
+          setShowOpportunityDialog(true);
         } else {
           toast.info("Simulação concluída, mas lucro insuficiente");
         }
@@ -306,6 +307,21 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
 
   return (
     <>
+      <OpportunityDialog
+        open={showOpportunityDialog}
+        onOpenChange={setShowOpportunityDialog}
+        tokenA={tokenA}
+        tokenB={tokenB}
+        dexA={dexA}
+        dexB={dexB}
+        expectedProfit={simulationResult?.expectedProfit}
+        gasEstimate={gasEstimate}
+        onProceed={() => {
+          setShowOpportunityDialog(false);
+          executeArbitrage(simulationResult);
+        }}
+      />
+
       <SimulationDialog
         open={showSimulationDialog}
         onOpenChange={setShowSimulationDialog}

@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ArrowRightLeft, DollarSign, TrendingUp } from "lucide-react";
+import { ArrowRightLeft, DollarSign, Zap } from "lucide-react";
 
 interface OpportunityDialogProps {
   open: boolean;
@@ -10,6 +10,7 @@ interface OpportunityDialogProps {
   dexA: string;
   dexB: string;
   expectedProfit?: number;
+  gasEstimate?: string | null;
   onProceed: () => void;
 }
 
@@ -21,14 +22,19 @@ export const OpportunityDialog = ({
   dexA,
   dexB,
   expectedProfit,
+  gasEstimate,
   onProceed,
 }: OpportunityDialogProps) => {
+  const slippagePercentage = 0.5;
+  const slippageCost = expectedProfit ? (expectedProfit * slippagePercentage) / 100 : 0;
+  const estimatedNetProfit = expectedProfit ? expectedProfit - slippageCost : 0;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-[#1A1F2C] border-2 border-polygon-purple">
+      <DialogContent className="bg-[#1A1F2C] border-2 border-polygon-purple animate-fade-in">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-polygon-purple flex items-center gap-2">
-            <TrendingUp className="h-6 w-6" />
+            <Zap className="h-6 w-6" />
             Oportunidade de Arbitragem Detectada!
           </DialogTitle>
           <DialogDescription asChild>
@@ -42,17 +48,37 @@ export const OpportunityDialog = ({
                   <span className="font-medium text-white">{tokenA}/{tokenB}</span>
                 </div>
                 <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">DEXs</span>
+                  <span className="font-medium text-white">{dexA} ↔ {dexB}</span>
+                </div>
+                <div className="flex justify-between items-center">
                   <span className="text-muted-foreground flex items-center gap-2">
                     <DollarSign className="h-4 w-4" />
-                    Lucro Esperado
+                    Lucro Bruto Esperado
                   </span>
                   <span className="font-medium text-green-500">
                     +{expectedProfit?.toFixed(2)} USDC
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">DEXs</span>
-                  <span className="font-medium text-white">{dexA} ↔ {dexB}</span>
+                  <span className="text-muted-foreground">Gas Fee (est.)</span>
+                  <span className="font-medium text-red-400">
+                    -{gasEstimate || '0.01'} MATIC
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Slippage ({slippagePercentage}%)</span>
+                  <span className="font-medium text-red-400">
+                    -{slippageCost.toFixed(4)} USDC
+                  </span>
+                </div>
+                <div className="border-t border-white/10 pt-2 mt-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Lucro Líquido (est.)</span>
+                    <span className="font-medium text-green-500">
+                      +{estimatedNetProfit.toFixed(4)} USDC
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -63,7 +89,7 @@ export const OpportunityDialog = ({
             onClick={onProceed}
             className="w-full bg-polygon-purple hover:bg-polygon-purple/90"
           >
-            Prosseguir com Simulação
+            Executar Arbitragem
           </Button>
         </DialogFooter>
       </DialogContent>
