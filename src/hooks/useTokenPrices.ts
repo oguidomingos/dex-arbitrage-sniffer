@@ -47,7 +47,8 @@ export const useTokenPrices = (tokens: string[]) => {
 
   useEffect(() => {
     fetchPrices();
-    const interval = setInterval(fetchPrices, 5000); // Atualiza a cada 5 segundos
+    // Atualiza a cada 3 segundos para capturar mudanças de preço mais rapidamente
+    const interval = setInterval(fetchPrices, 3000);
     return () => clearInterval(interval);
   }, [fetchPrices]);
 

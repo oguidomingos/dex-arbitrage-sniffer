@@ -65,12 +65,15 @@ export const ArbitrageDisplay = ({
           const polContract = new ethers.Contract(POL_TOKEN_ADDRESS, POL_ABI, provider);
           const balance = await polContract.balanceOf(accounts[0]);
           const decimals = await polContract.decimals();
-          setPolBalance(ethers.formatUnits(balance, decimals));
+          const formattedBalance = ethers.formatUnits(balance, decimals);
+          setPolBalance(formattedBalance);
+          return formattedBalance;
         }
       } catch (error) {
         console.error("Error checking POL balance:", error);
       }
     }
+    return "0";
   };
 
   const checkRequirements = async () => {
