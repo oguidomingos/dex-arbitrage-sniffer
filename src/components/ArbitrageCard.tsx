@@ -193,7 +193,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
               <TrendingUp className="h-6 w-6" />
               Oportunidade de Arbitragem Detectada!
             </DialogTitle>
-            <DialogDescription className="text-lg">
+            <DialogDescription asChild>
               <div className="space-y-4 mt-4">
                 <div className="bg-black/20 p-4 rounded-lg space-y-3">
                   <div className="flex justify-between items-center">
@@ -236,7 +236,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
               <span>{dexB}</span>
             </div>
           </div>
-          <CardDescription className="text-sm text-muted-foreground">
+          <CardDescription>
             Arbitragem automática entre pools (1x/min)
           </CardDescription>
         </CardHeader>
