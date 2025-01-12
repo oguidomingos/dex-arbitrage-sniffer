@@ -17,26 +17,28 @@ export const LogDisplay = () => {
 
     console.log = (...args) => {
       originalConsoleLog.apply(console, args);
-      setLogs(prev => [...prev, {
+      const newLog: Log = {
         id: Math.random().toString(36).substr(2, 9),
         timestamp: new Date(),
         message: args.map(arg => 
           typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
         ).join(' '),
         type: 'info'
-      }].slice(-50)); // Mantém apenas os últimos 50 logs
+      };
+      setLogs(prev => [...prev, newLog].slice(-50));
     };
 
     console.error = (...args) => {
       originalConsoleError.apply(console, args);
-      setLogs(prev => [...prev, {
+      const newLog: Log = {
         id: Math.random().toString(36).substr(2, 9),
         timestamp: new Date(),
         message: args.map(arg => 
           typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
         ).join(' '),
         type: 'error'
-      }].slice(-50));
+      };
+      setLogs(prev => [...prev, newLog].slice(-50));
     };
 
     return () => {
