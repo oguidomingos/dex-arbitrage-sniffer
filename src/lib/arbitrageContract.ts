@@ -17,7 +17,8 @@ const ARBITRAGE_ABI = [
 
 const ERC20_ABI = [
   "function approve(address spender, uint256 amount) external returns (bool)",
-  "function allowance(address owner, address spender) external view returns (uint256)"
+  "function allowance(address owner, address spender) external view returns (uint256)",
+  "function decimals() view returns (uint8)"
 ];
 
 const getTokenAddress = (token: string): string => {
@@ -33,6 +34,18 @@ const getTokenAddress = (token: string): string => {
         return token;
       }
       throw new Error(`Token não suportado: ${token}`);
+  }
+};
+
+const getTokenDecimals = async (tokenAddress: string, signer: ethers.Signer): Promise<number> => {
+  if (tokenAddress === MATIC_ADDRESS) return 18; // MATIC sempre tem 18 decimais
+  
+  const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
+  try {
+    return await tokenContract.decimals();
+  } catch (error) {
+    console.error('Erro ao obter decimais do token:', error);
+    return 18; // fallback para 18 decimais
   }
 };
 
@@ -94,12 +107,19 @@ export const executeRealArbitrage = async (
       signer
     );
 
-    const amountInWei = ethers.parseUnits(amount, 6);
     const tokenAAddress = getTokenAddress(tokenA);
     const tokenBAddress = getTokenAddress(tokenB);
     
+    // Usa WETH como token do flashloan se disponível, senão usa o tokenA
+    const flashloanToken = tokenA === 'WETH' ? WETH_ADDRESS : tokenAAddress;
+    const decimals = await getTokenDecimals(flashloanToken, signer);
+    const amountInWei = ethers.parseUnits(amount, decimals);
+    
     // Verifica e aprova os tokens necessários
-    const approvalNeeded = [USDC_ADDRESS, tokenAAddress, tokenBAddress];
+    const approvalNeeded = [flashloanToken, tokenAAddress, tokenBAddress].filter(
+      (address) => address !== MATIC_ADDRESS // Remove MATIC da lista pois não precisa de aprovação
+    );
+    
     for (const tokenAddress of approvalNeeded) {
       const approved = await checkAndApproveToken(tokenAddress, signer, amountInWei);
       if (!approved) {
@@ -108,13 +128,15 @@ export const executeRealArbitrage = async (
     }
     
     console.log('Executing arbitrage with params:', {
+      flashloanToken,
       tokenA: tokenAAddress,
       tokenB: tokenBAddress,
-      amount: amountInWei.toString()
+      amount: amountInWei.toString(),
+      decimals
     });
 
     const tx = await contract.requestFlashLoan(
-      USDC_ADDRESS,
+      flashloanToken,
       amountInWei,
       tokenAAddress,
       tokenBAddress,
