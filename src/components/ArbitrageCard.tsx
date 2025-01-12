@@ -21,10 +21,11 @@ interface Transaction {
   id: string;
   timestamp: number;
   type: 'execute' | 'withdraw' | 'simulation';
-  status: 'success' | 'failed';
+  status: 'success' | 'failed' | 'pending';
   amount?: string;
   error?: string;
   profitEstimate?: number;
+  txHash?: string;
 }
 
 export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: ArbitrageCardProps) => {
@@ -38,27 +39,15 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
   const [gasEstimate, setGasEstimate] = useState<string | null>(null);
   const prices = useTokenPrices([tokenA, tokenB]);
 
-  const isOpportunityProfitable = (result: any) => {
-    if (!result || !result.expectedProfit) return false;
-    
-    const gasEstimateCost = gasEstimate ? parseFloat(gasEstimate) : 0.01;
-    const slippagePercentage = 0.005; // 0.5% slippage tolerance
-    const slippageCost = result.initialAmount * slippagePercentage;
-    const minimumProfitThreshold = 0.02; // 2% minimum profit
-    
-    const netProfit = result.expectedProfit - slippageCost - gasEstimateCost;
-    const profitPercentage = (netProfit / result.initialAmount) * 100;
-    
-    return profitPercentage > minimumProfitThreshold;
-  };
-
   const addTransaction = (
     type: 'execute' | 'withdraw' | 'simulation',
-    status: 'success' | 'failed',
+    status: 'success' | 'failed' | 'pending',
+    txHash?: string,
     amount?: string,
     error?: string,
     profitEstimate?: number
   ) => {
+    console.log(`Adding transaction: Type=${type}, Status=${status}, Hash=${txHash}`);
     const newTransaction: Transaction = {
       id: Math.random().toString(36).substr(2, 9),
       timestamp: Date.now(),
@@ -66,9 +55,79 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       status,
       amount,
       error,
-      profitEstimate
+      profitEstimate,
+      txHash
     };
-    setTransactions(prev => [newTransaction, ...prev].slice(0, 10)); // Mantém apenas as 10 últimas transações
+    setTransactions(prev => [newTransaction, ...prev].slice(0, 10));
+  };
+
+  const handleSimulate = async () => {
+    if (isPaused) {
+      toast.error("Scanner está pausado");
+      return;
+    }
+    
+    setIsSimulating(true);
+    try {
+      console.log("Iniciando simulação para:", { tokenA, tokenB, dexA, dexB });
+      const validationError = validateArbitrageParameters(tokenA, tokenB, dexA, dexB);
+      if (validationError) {
+        throw new Error(validationError);
+      }
+
+      const result = await simulateFlashloan(1, tokenA, tokenB, dexA, dexB);
+      console.log("Resultado da simulação:", result);
+      setSimulationResult(result);
+      setShowSimulationDialog(true);
+      addTransaction('simulation', 'success', undefined, undefined, undefined, result.expectedProfit);
+      
+      toast.success("Simulação concluída com sucesso!", {
+        description: `Lucro estimado: ${result.expectedProfit.toFixed(2)} USDC`
+      });
+    } catch (error) {
+      console.error("Erro na simulação:", error);
+      addTransaction('simulation', 'failed', undefined, undefined, error instanceof Error ? error.message : 'Erro desconhecido');
+      toast.error("Erro ao simular operação", {
+        description: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    } finally {
+      setIsSimulating(false);
+    }
+  };
+
+  const handleWithdrawProfit = async () => {
+    if (!window.ethereum) {
+      toast.error("Por favor, instale a MetaMask");
+      return;
+    }
+
+    try {
+      console.log("Iniciando retirada de lucro para token:", tokenA);
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      
+      const txHash = await withdrawArbitrageProfit(tokenA, signer);
+      console.log("Hash da transação de retirada:", txHash);
+      
+      addTransaction('withdraw', 'pending', txHash);
+      
+      // Aguarda confirmação da transação
+      const receipt = await provider.waitForTransaction(txHash);
+      console.log("Recibo da transação:", receipt);
+      
+      if (receipt.status === 1) {
+        addTransaction('withdraw', 'success', txHash);
+        toast.success("Lucro retirado com sucesso!");
+      } else {
+        throw new Error("Transação falhou");
+      }
+    } catch (error) {
+      console.error("Erro ao retirar lucro:", error);
+      addTransaction('withdraw', 'failed', undefined, undefined, error instanceof Error ? error.message : 'Erro desconhecido');
+      toast.error("Erro ao retirar lucro", {
+        description: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
   };
 
   useEffect(() => {
@@ -103,7 +162,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
         }
         
         if (isOpportunityProfitable(result)) {
-          addTransaction('simulation', 'success', undefined, undefined, result.expectedProfit);
+          addTransaction('simulation', 'success', undefined, undefined, undefined, result.expectedProfit);
           setShowSimulationDialog(true);
           
           toast.success(`Oportunidade encontrada: ${tokenA}/${tokenB}`, {
@@ -130,64 +189,6 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
     const interval = setInterval(updateSimulation, 1000);
     return () => clearInterval(interval);
   }, [tokenA, tokenB, dexA, dexB, isPaused, lastExecutionTime]);
-
-  const handleSimulate = async () => {
-    if (isPaused) {
-      toast.error("Scanner está pausado");
-      return;
-    }
-    
-    setIsSimulating(true);
-    try {
-      // Validação dos parâmetros
-      const validationError = validateArbitrageParameters(tokenA, tokenB, dexA, dexB);
-      if (validationError) {
-        throw new Error(validationError);
-      }
-
-      const result = await simulateFlashloan(1, tokenA, tokenB, dexA, dexB);
-      setSimulationResult(result);
-      setShowSimulationDialog(true);
-      addTransaction('simulation', 'success', undefined, undefined, result.expectedProfit);
-      
-      toast.success("Simulação concluída com sucesso!", {
-        description: `Lucro estimado: ${result.expectedProfit.toFixed(2)} USDC`
-      });
-    } catch (error) {
-      console.error("Erro na simulação:", error);
-      addTransaction('simulation', 'failed', undefined, error instanceof Error ? error.message : 'Erro desconhecido');
-      toast.error("Erro ao simular operação");
-    } finally {
-      setIsSimulating(false);
-    }
-  };
-
-  const handleWithdrawProfit = async () => {
-    if (!window.ethereum) {
-      toast.error("Por favor, instale a MetaMask");
-      return;
-    }
-
-    try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      
-      // Validação do saldo antes do saque
-      const balance = await provider.getBalance(await signer.getAddress());
-      if (balance <= 0n) {
-        throw new Error("Sem saldo disponível para saque");
-      }
-
-      await withdrawArbitrageProfit(tokenA, signer);
-      addTransaction('withdraw', 'success');
-      toast.success("Lucro retirado com sucesso!");
-    } catch (error) {
-      addTransaction('withdraw', 'failed', undefined, error instanceof Error ? error.message : 'Erro desconhecido');
-      toast.error("Erro ao retirar lucro", {
-        description: error instanceof Error ? error.message : 'Erro desconhecido'
-      });
-    }
-  };
 
   return (
     <>

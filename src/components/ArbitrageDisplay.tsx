@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowRightLeft, Wallet, RefreshCcw, PiggyBank, TrendingUp } from "lucide-react";
+import { ArrowRightLeft, Wallet, RefreshCcw, PiggyBank, TrendingUp, ExternalLink } from "lucide-react";
 import { TransactionHistory } from "./TransactionHistory";
 import { toast } from "sonner";
 
@@ -15,10 +15,11 @@ interface ArbitrageDisplayProps {
     id: string;
     timestamp: number;
     type: 'execute' | 'withdraw' | 'simulation';
-    status: 'success' | 'failed';
+    status: 'success' | 'failed' | 'pending';
     amount?: string;
     error?: string;
     profitEstimate?: number;
+    txHash?: string;
   }>;
   prices: any;
   estimatedProfit: number | null;
@@ -45,6 +46,10 @@ export const ArbitrageDisplay = ({
   simulationResult
 }: ArbitrageDisplayProps) => {
   const isOpportunityProfitable = simulationResult && estimatedProfit && estimatedProfit > 0;
+
+  const openPolygonScan = (txHash: string) => {
+    window.open(`https://polygonscan.com/tx/${txHash}`, '_blank');
+  };
 
   return (
     <Card className="w-full bg-[#1A1F2C] border-2 border-polygon-purple/20 hover:border-polygon-purple/50 transition-all duration-300 shadow-lg hover:shadow-polygon-purple/20">
@@ -79,6 +84,7 @@ export const ArbitrageDisplay = ({
           tokenA={tokenA}
           tokenB={tokenB}
           showLogs={false}
+          onTxClick={openPolygonScan}
         />
       </CardContent>
       <CardFooter className="flex gap-2">
