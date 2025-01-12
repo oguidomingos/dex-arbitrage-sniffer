@@ -23,7 +23,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB }: ArbitrageC
   useEffect(() => {
     const updateSimulation = async () => {
       try {
-        const result = await simulateFlashloan(20, tokenA, tokenB, dexA, dexB);
+        const result = await simulateFlashloan(1, tokenA, tokenB, dexA, dexB);
         setSimulationResult(result);
       } catch (error) {
         console.error("Erro ao atualizar simulação:", error);
@@ -38,7 +38,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB }: ArbitrageC
   const handleSimulate = async () => {
     setIsSimulating(true);
     try {
-      const result = await simulateFlashloan(20, tokenA, tokenB, dexA, dexB);
+      const result = await simulateFlashloan(1, tokenA, tokenB, dexA, dexB);
       setSimulationResult(result);
       toast.success("Simulação concluída com sucesso!");
     } catch (error) {
