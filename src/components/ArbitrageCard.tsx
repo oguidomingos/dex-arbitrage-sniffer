@@ -77,8 +77,8 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       }
     };
 
-    // Alterando o intervalo para 5 segundos (5000ms)
-    const interval = setInterval(updateSimulation, 5000);
+    // Alterando o intervalo para 1 segundo (1000ms)
+    const interval = setInterval(updateSimulation, 1000);
     return () => clearInterval(interval);
   }, [tokenA, tokenB, dexA, dexB, isPaused, lastExecutionTime, isExecuting]);
 
@@ -119,7 +119,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       addTransaction('simulation', 'failed', undefined, error instanceof Error ? error.message : 'Erro desconhecido');
       toast.error("Erro ao simular operação");
     } finally {
-      setIsSimulating(false); // Always reset simulation state
+      setIsSimulating(false);
     }
   };
 
