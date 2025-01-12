@@ -11,6 +11,9 @@ interface OpportunityDialogProps {
   dexB: string;
   expectedProfit?: number;
   gasEstimate?: string | null;
+  bestRoute?: number;
+  route1Profit?: number;
+  route2Profit?: number;
   onProceed: () => void;
 }
 
@@ -23,6 +26,9 @@ export const OpportunityDialog = ({
   dexB,
   expectedProfit,
   gasEstimate,
+  bestRoute,
+  route1Profit,
+  route2Profit,
   onProceed,
 }: OpportunityDialogProps) => {
   const slippagePercentage = 0.5;
@@ -43,13 +49,27 @@ export const OpportunityDialog = ({
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground flex items-center gap-2">
                     <ArrowRightLeft className="h-4 w-4" />
-                    Par de Tokens
+                    Melhor Rota
                   </span>
+                  <span className="font-medium text-white">
+                    {bestRoute === 1 ? `${dexA} → ${dexB}` : `${dexB} → ${dexA}`}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Par de Tokens</span>
                   <span className="font-medium text-white">{tokenA}/{tokenB}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">DEXs</span>
-                  <span className="font-medium text-white">{dexA} ↔ {dexB}</span>
+                  <span className="text-muted-foreground">Rota 1 (Profit)</span>
+                  <span className={`font-medium ${route1Profit && route1Profit > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {route1Profit?.toFixed(4)} USDC
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Rota 2 (Profit)</span>
+                  <span className={`font-medium ${route2Profit && route2Profit > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {route2Profit?.toFixed(4)} USDC
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground flex items-center gap-2">
@@ -57,7 +77,7 @@ export const OpportunityDialog = ({
                     Lucro Bruto Esperado
                   </span>
                   <span className="font-medium text-green-500">
-                    +{expectedProfit?.toFixed(2)} USDC
+                    +{expectedProfit?.toFixed(4)} USDC
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
