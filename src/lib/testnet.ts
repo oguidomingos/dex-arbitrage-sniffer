@@ -9,16 +9,20 @@ export const TESTNET_ADDRESSES = {
   WETH: "0x3C68CE8504087f89c640D02d133646d98e64ddd9"       // Mumbai WETH
 };
 
-// Mumbai network configuration
+// Mumbai network configuration com múltiplos RPCs
 const MUMBAI_NETWORK = {
   chainId: '0x13881', // 80001 in hex
-  chainName: 'Mumbai',
+  chainName: 'Mumbai Testnet',
   nativeCurrency: {
     name: 'MATIC',
     symbol: 'MATIC',
     decimals: 18
   },
-  rpcUrls: ['https://rpc-mumbai.maticvigil.com/'],
+  rpcUrls: [
+    'https://polygon-mumbai.gateway.tenderly.co',
+    'https://polygon-mumbai.blockpi.network/v1/rpc/public',
+    'https://polygon-mumbai.g.alchemy.com/v2/demo'
+  ],
   blockExplorerUrls: ['https://mumbai.polygonscan.com/']
 };
 
@@ -63,23 +67,39 @@ export const validateTestnetSetup = async () => {
               method: 'wallet_addEthereumChain',
               params: [MUMBAI_NETWORK],
             });
+            
+            // Aguarda um momento para a rede ser adicionada
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Tenta conectar novamente
+            await window.ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: MUMBAI_NETWORK.chainId }],
+            });
+            
             toast.success("Rede Mumbai adicionada com sucesso");
           } catch (addError: any) {
             console.error('Erro ao adicionar rede:', addError);
-            toast.error("Erro ao adicionar rede Mumbai. Tente adicionar manualmente.");
+            toast.error("Erro ao adicionar rede Mumbai. Verifique se você tem permissão para adicionar redes.");
             return false;
           }
         } else {
           console.error('Erro ao mudar rede:', switchError);
-          toast.error("Erro ao mudar para rede Mumbai. Tente mudar manualmente.");
+          toast.error("Erro ao mudar para rede Mumbai. Verifique suas configurações do MetaMask.");
           return false;
         }
       }
 
       // Verifica novamente se a rede foi alterada
-      const updatedNetwork = await provider.getNetwork();
-      if (updatedNetwork.chainId !== 80001n) {
-        toast.error("Falha ao mudar para rede Mumbai");
+      try {
+        const updatedNetwork = await provider.getNetwork();
+        if (updatedNetwork.chainId !== 80001n) {
+          toast.error("Falha ao mudar para rede Mumbai. Tente adicionar manualmente.");
+          return false;
+        }
+      } catch (error) {
+        console.error('Erro ao verificar rede:', error);
+        toast.error("Erro ao verificar a rede. Tente novamente.");
         return false;
       }
     }
@@ -99,7 +119,7 @@ export const validateTestnetSetup = async () => {
     return true;
   } catch (error) {
     console.error("Erro na validação da testnet:", error);
-    toast.error("Erro ao validar ambiente de teste");
+    toast.error("Erro ao validar ambiente de teste. Verifique sua conexão e tente novamente.");
     return false;
   }
 };
