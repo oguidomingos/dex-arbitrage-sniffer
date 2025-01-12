@@ -8,6 +8,7 @@ import { useTokenPrices } from "@/hooks/useTokenPrices";
 import { ArrowRightLeft, Wallet, RefreshCcw, PiggyBank, TrendingUp } from "lucide-react";
 import { ethers } from "ethers";
 import { SimulationDialog } from "./dialogs/SimulationDialog";
+import { TransactionHistory } from "./TransactionHistory";
 
 interface ArbitrageCardProps {
   tokenA: string;
@@ -237,7 +238,13 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Removed TransactionHistory component */}
+          <TransactionHistory 
+            transactions={transactions}
+            prices={prices}
+            tokenA={tokenA}
+            tokenB={tokenB}
+            showLogs={false}
+          />
         </CardContent>
         <CardFooter className="flex gap-2">
           <Button 
