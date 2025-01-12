@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { PriceMonitor } from '@/services/priceMonitor';
 import { ethers } from 'ethers';
 
@@ -12,62 +12,64 @@ interface TokenPrices {
 }
 
 export const useTokenPrices = (tokens: string[]) => {
-  const [prices, setPrices] = useState<TokenPrices>(() => {
-    const initialPrices: TokenPrices = {};
-    tokens.forEach(token => {
-      initialPrices[token] = [];
-    });
-    return initialPrices;
-  });
-
+  const [prices, setPrices] = useState<TokenPrices>({});
   const [priceMonitor] = useState(() => new PriceMonitor());
-  const [lastMinute, setLastMinute] = useState<number>(() => 
-    Math.floor(Date.now() / 60000)
-  );
+  const [lastMinute, setLastMinute] = useState(() => Math.floor(Date.now() / 60000));
 
-  useEffect(() => {
-    const fetchPrices = async () => {
-      try {
-        const currentMinute = Math.floor(Date.now() / 60000);
+  const fetchPrices = useCallback(async () => {
+    try {
+      const currentMinute = Math.floor(Date.now() / 60000);
+      
+      if (currentMinute > lastMinute) {
+        const newPrices: TokenPrices = { ...prices };
         
-        if (currentMinute > lastMinute) {
-          const newPrices: TokenPrices = {};
+        for (const token of tokens) {
+          const baseAmount = ethers.parseEther("1");
+          const result = await priceMonitor.checkArbitrageProfitability(
+            token,
+            "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174", // USDC on Polygon
+            baseAmount
+          );
           
-          for (const token of tokens) {
-            // Use 1 MATIC como quantidade base para cotação
-            const baseAmount = ethers.parseEther("1");
-            const result = await priceMonitor.checkArbitrageProfitability(
-              token,
-              "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174", // USDC on Polygon
-              baseAmount
-            );
-            
-            const price = Number(ethers.formatEther(result.expectedProfit));
-            const timestamp = currentMinute * 60000;
-            
-            newPrices[token] = [
-              ...(prices[token]?.slice(-30) || []),
-              { timestamp, price }
-            ];
+          const price = Number(ethers.formatEther(result.expectedProfit));
+          const timestamp = currentMinute * 60000;
+          
+          if (!newPrices[token]) {
+            newPrices[token] = [];
           }
           
-          setPrices(prevPrices => ({
-            ...prevPrices,
-            ...newPrices
-          }));
-          
-          setLastMinute(currentMinute);
+          newPrices[token] = [
+            ...newPrices[token].slice(-30),
+            { timestamp, price }
+          ];
         }
-      } catch (error) {
-        console.error('Error fetching token prices:', error);
+        
+        setPrices(newPrices);
+        setLastMinute(currentMinute);
       }
+    } catch (error) {
+      console.error('Error fetching token prices:', error);
+    }
+  }, [tokens, lastMinute, priceMonitor, prices]);
+
+  useEffect(() => {
+    // Inicializa os preços imediatamente
+    const initializePrices = () => {
+      const initialPrices: TokenPrices = {};
+      tokens.forEach(token => {
+        initialPrices[token] = [];
+      });
+      setPrices(initialPrices);
     };
 
+    initializePrices();
+    
+    // Configura o intervalo para atualização
     fetchPrices();
     const interval = setInterval(fetchPrices, 1000);
     
     return () => clearInterval(interval);
-  }, [tokens, lastMinute, priceMonitor, prices]);
+  }, [fetchPrices]);
 
   return prices;
 };
