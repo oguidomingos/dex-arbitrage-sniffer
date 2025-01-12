@@ -5,7 +5,8 @@ import { toast } from 'sonner';
 const USDC_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
 const WETH_ADDRESS = "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619";
 
-const ARBITRAGE_CONTRACT_ADDRESS = "0x123..."; // Substitua pelo endereço real do seu contrato após o deploy
+// Endereço real do contrato de arbitragem na Polygon
+const ARBITRAGE_CONTRACT_ADDRESS = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e";
 
 const ARBITRAGE_ABI = [
   "function requestFlashLoan(address token, uint256 amount, address tokenA, address tokenB) external",
@@ -23,24 +24,37 @@ export const executeArbitrage = async (
     const tokenAAddress = tokenA === 'USDC' ? USDC_ADDRESS : WETH_ADDRESS;
     const tokenBAddress = tokenB === 'USDC' ? USDC_ADDRESS : WETH_ADDRESS;
 
+    // Verifica se o endereço do contrato é válido
+    if (!ethers.isAddress(ARBITRAGE_CONTRACT_ADDRESS)) {
+      throw new Error("Endereço do contrato inválido");
+    }
+
     const contract = new ethers.Contract(
       ARBITRAGE_CONTRACT_ADDRESS,
       ARBITRAGE_ABI,
       signer
     );
 
+    // Calcula o valor em wei baseado no token
+    const decimals = tokenA === 'USDC' ? 6 : 18;
+    const amountInWei = ethers.parseUnits(amount, decimals);
+
     console.log('Executing arbitrage with params:', {
       tokenAAddress,
       tokenBAddress,
-      amount
+      amountInWei: amountInWei.toString(),
+      decimals
     });
 
     const tx = await contract.requestFlashLoan(
       tokenAAddress,
-      ethers.parseUnits(amount, tokenA === 'USDC' ? 6 : 18),
+      amountInWei,
       tokenAAddress,
       tokenBAddress,
-      { gasLimit: 3000000 } // Adiciona um limite de gas explícito
+      { 
+        gasLimit: 3000000,
+        gasPrice: ethers.parseUnits('50', 'gwei') // Ajusta o preço do gás para garantir execução
+      }
     );
 
     await tx.wait();
@@ -60,13 +74,21 @@ export const withdrawProfit = async (
   try {
     const tokenAddress = token === 'USDC' ? USDC_ADDRESS : WETH_ADDRESS;
     
+    if (!ethers.isAddress(ARBITRAGE_CONTRACT_ADDRESS)) {
+      throw new Error("Endereço do contrato inválido");
+    }
+
     const contract = new ethers.Contract(
       ARBITRAGE_CONTRACT_ADDRESS,
       ARBITRAGE_ABI,
       signer
     );
 
-    const tx = await contract.withdraw(tokenAddress, { gasLimit: 1000000 });
+    const tx = await contract.withdraw(tokenAddress, { 
+      gasLimit: 1000000,
+      gasPrice: ethers.parseUnits('50', 'gwei')
+    });
+    
     await tx.wait();
     toast.success("Lucro retirado com sucesso!");
     return true;
