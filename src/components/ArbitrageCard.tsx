@@ -21,12 +21,9 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB }: ArbitrageC
   const prices = useTokenPrices([tokenA, tokenB]);
 
   useEffect(() => {
-    const simulateAutomatically = async () => {
+    const updateProfits = async () => {
       try {
-        const result = await simulateFlashloan(20, tokenA, tokenB, dexA, dexB);
-        setSimulationResult(result);
-        
-        // Calcula o novo lucro estimado baseado nos preços atuais
+        // Atualiza o lucro estimado baseado nos preços atuais
         const tokenAPrice = prices[tokenA]?.[prices[tokenA]?.length - 1]?.price;
         const tokenBPrice = prices[tokenB]?.[prices[tokenB]?.length - 1]?.price;
         
@@ -34,13 +31,20 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB }: ArbitrageC
           const priceDiff = Math.abs(tokenAPrice - tokenBPrice);
           const newProfit = (priceDiff / Math.min(tokenAPrice, tokenBPrice)) * 100;
           setCurrentProfit(parseFloat(newProfit.toFixed(3)));
+          
+          // Atualiza a simulação do flashloan com os novos preços
+          const result = await simulateFlashloan(20, tokenA, tokenB, dexA, dexB);
+          setSimulationResult(result);
         }
       } catch (error) {
-        console.error("Erro na simulação automática:", error);
+        console.error("Erro na atualização dos lucros:", error);
       }
     };
 
-    const interval = setInterval(simulateAutomatically, 1000);
+    // Atualiza imediatamente e depois a cada segundo
+    updateProfits();
+    const interval = setInterval(updateProfits, 1000);
+    
     return () => clearInterval(interval);
   }, [tokenA, tokenB, dexA, dexB, prices]);
 
