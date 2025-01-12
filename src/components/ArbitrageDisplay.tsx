@@ -73,6 +73,21 @@ export const ArbitrageDisplay = ({
     }
   };
 
+  const checkRequirements = async () => {
+    if (!window.ethereum) {
+      toast.error("Por favor, instale a MetaMask");
+      return false;
+    }
+
+    const balance = await checkPolBalance();
+    if (parseFloat(balance) < 0.1) {
+      toast.error("Saldo de POL insuficiente. Mínimo necessário: 0.1 POL");
+      return false;
+    }
+
+    return true;
+  };
+
   useEffect(() => {
     checkPolBalance();
     const interval = setInterval(checkPolBalance, 10000);

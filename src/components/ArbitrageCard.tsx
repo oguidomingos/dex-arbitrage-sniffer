@@ -51,6 +51,17 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
   const simulationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isProcessingRef = useRef(false);
 
+  const checkContractBalance = async () => {
+    if (!window.ethereum) return;
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const balance = await provider.getBalance(ARBITRAGE_CONTRACT_ADDRESS);
+      setContractBalance(ethers.formatEther(balance));
+    } catch (error) {
+      console.error("Error checking contract balance:", error);
+    }
+  };
+
   const checkPolBalance = async () => {
     if (!window.ethereum) return "0";
     try {
