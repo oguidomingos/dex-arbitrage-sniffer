@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Check, AlertTriangle } from "lucide-react";
+import { Check, AlertTriangle, ArrowRightLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface SimulationDialogProps {
@@ -9,6 +10,7 @@ interface SimulationDialogProps {
   simulationResult: any;
   isExecuting: boolean;
   gasEstimate: string | null;
+  onExecute: () => void;
 }
 
 export const SimulationDialog = ({
@@ -17,6 +19,7 @@ export const SimulationDialog = ({
   simulationResult,
   isExecuting,
   gasEstimate,
+  onExecute
 }: SimulationDialogProps) => {
   const [progress, setProgress] = useState(0);
 
@@ -32,7 +35,6 @@ export const SimulationDialog = ({
           const next = prev + step;
           if (next >= 100) {
             clearInterval(timer);
-            setTimeout(() => onOpenChange(false), 100);
             return 100;
           }
           return next;
@@ -41,7 +43,7 @@ export const SimulationDialog = ({
 
       return () => clearInterval(timer);
     }
-  }, [open, onOpenChange]);
+  }, [open]);
 
   const calculateNetProfit = () => {
     if (!simulationResult?.expectedProfit) return 0;
@@ -114,6 +116,16 @@ export const SimulationDialog = ({
                   {isExecuting ? 'Executando' : `Executando em ${((100 - progress) * 0.03).toFixed(1)}s`}
                 </p>
               </div>
+              {isProfitable && progress === 100 && (
+                <Button 
+                  className="w-full bg-polygon-purple hover:bg-polygon-purple/90"
+                  onClick={onExecute}
+                  disabled={isExecuting}
+                >
+                  <ArrowRightLeft className="h-4 w-4 mr-2" />
+                  {isExecuting ? "Executando..." : "Executar Arbitragem"}
+                </Button>
+              )}
             </div>
           </DialogDescription>
         </DialogHeader>

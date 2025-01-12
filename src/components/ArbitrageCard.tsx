@@ -67,6 +67,51 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
     setTransactions(prev => [newTransaction, ...prev].slice(0, 10));
   };
 
+  const handleExecute = async () => {
+    if (!window.ethereum) {
+      toast.error("Por favor, instale a MetaMask");
+      return;
+    }
+
+    setIsExecuting(true);
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      
+      console.log("Iniciando execução da arbitragem:", {
+        tokenA,
+        tokenB,
+        amount: simulationResult?.initialAmount
+      });
+
+      // Adiciona transação como pendente
+      addTransaction('execute', 'pending');
+
+      const success = await executeRealArbitrage(
+        tokenA,
+        tokenB,
+        simulationResult?.initialAmount?.toString() || "1",
+        signer
+      );
+
+      if (success) {
+        addTransaction('execute', 'success', undefined, simulationResult?.initialAmount?.toString(), undefined, simulationResult?.expectedProfit);
+        toast.success("Arbitragem executada com sucesso!");
+      } else {
+        throw new Error("Falha na execução da arbitragem");
+      }
+    } catch (error) {
+      console.error("Erro na execução:", error);
+      addTransaction('execute', 'failed', undefined, undefined, error instanceof Error ? error.message : 'Erro desconhecido');
+      toast.error("Erro ao executar arbitragem", {
+        description: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    } finally {
+      setIsExecuting(false);
+      setShowSimulationDialog(false);
+    }
+  };
+
   const handleSimulate = async () => {
     if (isPaused) {
       toast.error("Scanner está pausado");
@@ -184,12 +229,6 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
         console.error("Erro na simulação:", error);
         setEstimatedProfit(null);
         setIsSimulating(false);
-        
-        if (error instanceof Error) {
-          toast.error("Erro na simulação", {
-            description: error.message
-          });
-        }
       }
     };
 
@@ -206,6 +245,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
         simulationResult={simulationResult}
         isExecuting={isExecuting}
         gasEstimate={gasEstimate}
+        onExecute={handleExecute}
       />
 
       <ArbitrageDisplay
