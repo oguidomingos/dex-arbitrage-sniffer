@@ -6,7 +6,7 @@ const USDC_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
 const MATIC_ADDRESS = "0x0000000000000000000000000000000000001010"; // Endereço nativo do MATIC
 
 // Endereço do contrato de arbitragem na Polygon
-const ARBITRAGE_CONTRACT_ADDRESS = "0xd6B6C965aAC635B626f8fcF75785645ed6cbbDB5";
+const ARBITRAGE_CONTRACT_ADDRESS = "0x6e7a5FAFcec6BB1e78bAE2A1F0B612012BF14827"; // Novo endereço do contrato
 
 const ARBITRAGE_ABI = [
   "function requestFlashLoan(address token, uint256 amount, address tokenA, address tokenB) external",
