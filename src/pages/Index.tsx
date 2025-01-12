@@ -17,32 +17,11 @@ const Index = () => {
       dexB: "SushiSwap",
     },
     {
-      tokenA: "USDT",
-      tokenB: "USDC",
-      profit: 0.2,
-      dexA: "QuickSwap",
-      dexB: "UniswapV3",
-    },
-    {
-      tokenA: "ETH",
+      tokenA: "WETH",
       tokenB: "USDC",
       profit: 0.3,
       dexA: "SushiSwap",
       dexB: "UniswapV3",
-    },
-    {
-      tokenA: "WBTC",
-      tokenB: "USDC",
-      profit: 0.4,
-      dexA: "QuickSwap",
-      dexB: "SushiSwap",
-    },
-    {
-      tokenA: "DAI",
-      tokenB: "USDC",
-      profit: 0.15,
-      dexA: "UniswapV3",
-      dexB: "SushiSwap",
     }
   ]);
 
@@ -50,20 +29,28 @@ const Index = () => {
     const signer = await connectWallet();
     if (signer) {
       setConnected(true);
-      toast.success("Wallet connected successfully!");
+      toast.success("Carteira conectada com sucesso!");
     }
   };
 
   const togglePause = () => {
     setIsPaused(!isPaused);
-    toast.success(isPaused ? "Scanner resumed" : "Scanner paused");
+    toast.success(isPaused ? "Scanner retomado" : "Scanner pausado");
   };
 
   useEffect(() => {
     const checkConnection = async () => {
       if (window.ethereum) {
         const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-        setConnected(accounts.length > 0);
+        if (accounts.length > 0) {
+          setConnected(true);
+          // Verificar se o endereço da carteira corresponde ao contrato
+          const userAddress = accounts[0].toLowerCase();
+          const contractAddress = "0xd6B6C965aAC635B626f8fcF75785645ed6CbbDB5".toLowerCase();
+          if (userAddress !== contractAddress) {
+            toast.warning("Por favor, conecte a carteira correta que contém os tokens MATIC e WETH");
+          }
+        }
       }
     };
     checkConnection();
@@ -83,12 +70,12 @@ const Index = () => {
               {isPaused ? (
                 <>
                   <Play className="w-4 h-4" />
-                  Resume
+                  Retomar
                 </>
               ) : (
                 <>
                   <Pause className="w-4 h-4" />
-                  Pause
+                  Pausar
                 </>
               )}
             </Button>
@@ -97,7 +84,7 @@ const Index = () => {
               variant={connected ? "secondary" : "default"}
               className="bg-polygon-purple hover:bg-polygon-purple/90 text-white"
             >
-              {connected ? "Connected" : "Connect Wallet"}
+              {connected ? "Conectado" : "Conectar Carteira"}
             </Button>
           </div>
         </div>

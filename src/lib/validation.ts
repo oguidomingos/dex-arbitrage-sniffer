@@ -24,8 +24,8 @@ export const validateArbitrageParameters = (
     return "Os tokens precisam ser diferentes para arbitragem";
   }
 
-  // Validação de tokens suportados
-  const supportedTokens = ['MATIC', 'USDC', 'WETH', 'USDT'];
+  // Validação de tokens suportados - Adicionando WETH explicitamente
+  const supportedTokens = ['MATIC', 'WETH', 'USDC', 'USDT'];
   if (!supportedTokens.includes(tokenA) || !supportedTokens.includes(tokenB)) {
     return "Token não suportado";
   }
