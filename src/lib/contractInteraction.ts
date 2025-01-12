@@ -6,7 +6,7 @@ const USDC_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
 const WETH_ADDRESS = "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619";
 
 // Endereço real do contrato de arbitragem na Polygon
-const ARBITRAGE_CONTRACT_ADDRESS = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e";
+const ARBITRAGE_CONTRACT_ADDRESS = "0xd6B6C965aAC635B626f8fcF75785645ed6CbbDB5";
 
 const ARBITRAGE_ABI = [
   "function requestFlashLoan(address token, uint256 amount, address tokenA, address tokenB) external",
