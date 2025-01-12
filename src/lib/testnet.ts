@@ -9,19 +9,19 @@ export const TESTNET_ADDRESSES = {
   WETH: "0x3C68CE8504087f89c640D02d133646d98e64ddd9"       // Mumbai WETH
 };
 
-// Mumbai network configuration com múltiplos RPCs
+// Mumbai network configuration com RPCs públicos estáveis
 const MUMBAI_NETWORK = {
   chainId: '0x13881', // 80001 in hex
-  chainName: 'Mumbai Testnet',
+  chainName: 'Polygon Mumbai',
   nativeCurrency: {
     name: 'MATIC',
     symbol: 'MATIC',
     decimals: 18
   },
   rpcUrls: [
-    'https://polygon-mumbai.gateway.tenderly.co',
-    'https://polygon-mumbai.blockpi.network/v1/rpc/public',
-    'https://polygon-mumbai.g.alchemy.com/v2/demo'
+    'https://rpc.ankr.com/polygon_mumbai',
+    'https://matic-mumbai.chainstacklabs.com',
+    'https://rpc-mumbai.maticvigil.com'
   ],
   blockExplorerUrls: ['https://mumbai.polygonscan.com/']
 };
@@ -53,14 +53,13 @@ export const validateTestnetSetup = async () => {
       toast.loading("Alterando para rede Mumbai...", { duration: 2000 });
       
       try {
-        // Tenta mudar para Mumbai
+        // Primeiro tenta mudar para Mumbai
         await window.ethereum.request({
           method: 'wallet_switchEthereumChain',
           params: [{ chainId: MUMBAI_NETWORK.chainId }],
         });
-        toast.success("Rede alterada para Mumbai Testnet");
       } catch (switchError: any) {
-        // Se a rede não existe, adiciona
+        // Se a rede não existe, tenta adicionar
         if (switchError.code === 4902) {
           try {
             await window.ethereum.request({
@@ -68,8 +67,8 @@ export const validateTestnetSetup = async () => {
               params: [MUMBAI_NETWORK],
             });
             
-            // Aguarda um momento para a rede ser adicionada
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // Aguarda 2 segundos para a rede ser adicionada
+            await new Promise(resolve => setTimeout(resolve, 2000));
             
             // Tenta conectar novamente
             await window.ethereum.request({
@@ -80,26 +79,33 @@ export const validateTestnetSetup = async () => {
             toast.success("Rede Mumbai adicionada com sucesso");
           } catch (addError: any) {
             console.error('Erro ao adicionar rede:', addError);
-            toast.error("Erro ao adicionar rede Mumbai. Verifique se você tem permissão para adicionar redes.");
+            toast.error("Não foi possível adicionar a rede Mumbai. Por favor, adicione manualmente usando os seguintes dados:", {
+              duration: 10000,
+            });
+            console.log("Dados para adicionar rede manualmente:", MUMBAI_NETWORK);
             return false;
           }
         } else {
           console.error('Erro ao mudar rede:', switchError);
-          toast.error("Erro ao mudar para rede Mumbai. Verifique suas configurações do MetaMask.");
+          toast.error("Erro ao mudar para rede Mumbai. Tente adicionar manualmente.");
           return false;
         }
       }
 
-      // Verifica novamente se a rede foi alterada
+      // Aguarda mais um pouco e verifica novamente
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
       try {
-        const updatedNetwork = await provider.getNetwork();
+        const updatedProvider = new ethers.BrowserProvider(window.ethereum);
+        const updatedNetwork = await updatedProvider.getNetwork();
         if (updatedNetwork.chainId !== 80001n) {
-          toast.error("Falha ao mudar para rede Mumbai. Tente adicionar manualmente.");
+          toast.error("Não foi possível conectar à rede Mumbai. Tente adicionar manualmente usando os dados no console.");
+          console.log("Dados para adicionar rede manualmente:", MUMBAI_NETWORK);
           return false;
         }
       } catch (error) {
         console.error('Erro ao verificar rede:', error);
-        toast.error("Erro ao verificar a rede. Tente novamente.");
+        toast.error("Erro ao verificar a conexão com a rede. Tente novamente.");
         return false;
       }
     }
@@ -110,7 +116,7 @@ export const validateTestnetSetup = async () => {
     
     if (balance < ethers.parseEther("0.1")) {
       toast.error("Você precisa de pelo menos 0.1 MATIC para testes");
-      toast.info("Pegue MATIC de teste em: https://faucet.polygon.technology/");
+      window.open("https://faucet.polygon.technology/", "_blank");
       return false;
     }
 
