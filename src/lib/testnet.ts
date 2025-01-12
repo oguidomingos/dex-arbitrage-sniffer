@@ -9,6 +9,19 @@ export const TESTNET_ADDRESSES = {
   WETH: "0x3C68CE8504087f89c640D02d133646d98e64ddd9"       // Mumbai WETH
 };
 
+// Mumbai network configuration
+const MUMBAI_NETWORK = {
+  chainId: '0x13881', // 80001 in hex
+  chainName: 'Mumbai',
+  nativeCurrency: {
+    name: 'MATIC',
+    symbol: 'MATIC',
+    decimals: 18
+  },
+  rpcUrls: ['https://rpc-mumbai.maticvigil.com/'],
+  blockExplorerUrls: ['https://mumbai.polygonscan.com/']
+};
+
 export const validateTestnetSetup = async () => {
   try {
     if (!window.ethereum) {
@@ -16,18 +29,30 @@ export const validateTestnetSetup = async () => {
       return false;
     }
 
+    // Solicita acesso à carteira
+    try {
+      await window.ethereum.request({ method: 'eth_requestAccounts' });
+    } catch (error: any) {
+      if (error.code === 4001) {
+        toast.error("Por favor, conecte sua carteira MetaMask");
+      } else {
+        toast.error("Erro ao conectar carteira");
+      }
+      return false;
+    }
+
     // Verifica se está na rede Mumbai
     const provider = new ethers.BrowserProvider(window.ethereum);
     const network = await provider.getNetwork();
     
-    if (network.chainId !== 80001n) { // Mumbai chainId
-      toast.error("Por favor, conecte-se à rede Mumbai Testnet");
+    if (network.chainId !== 80001n) {
+      toast.loading("Alterando para rede Mumbai...", { duration: 2000 });
       
-      // Tenta mudar para Mumbai
       try {
+        // Tenta mudar para Mumbai
         await window.ethereum.request({
           method: 'wallet_switchEthereumChain',
-          params: [{ chainId: '0x13881' }], // 80001 em hex
+          params: [{ chainId: MUMBAI_NETWORK.chainId }],
         });
         toast.success("Rede alterada para Mumbai Testnet");
       } catch (switchError: any) {
@@ -36,23 +61,25 @@ export const validateTestnetSetup = async () => {
           try {
             await window.ethereum.request({
               method: 'wallet_addEthereumChain',
-              params: [{
-                chainId: '0x13881',
-                chainName: 'Mumbai Testnet',
-                nativeCurrency: {
-                  name: 'MATIC',
-                  symbol: 'MATIC',
-                  decimals: 18
-                },
-                rpcUrls: ['https://rpc-mumbai.maticvigil.com'],
-                blockExplorerUrls: ['https://mumbai.polygonscan.com']
-              }],
+              params: [MUMBAI_NETWORK],
             });
-          } catch (addError) {
+            toast.success("Rede Mumbai adicionada com sucesso");
+          } catch (addError: any) {
             console.error('Erro ao adicionar rede:', addError);
+            toast.error("Erro ao adicionar rede Mumbai. Tente adicionar manualmente.");
             return false;
           }
+        } else {
+          console.error('Erro ao mudar rede:', switchError);
+          toast.error("Erro ao mudar para rede Mumbai. Tente mudar manualmente.");
+          return false;
         }
+      }
+
+      // Verifica novamente se a rede foi alterada
+      const updatedNetwork = await provider.getNetwork();
+      if (updatedNetwork.chainId !== 80001n) {
+        toast.error("Falha ao mudar para rede Mumbai");
         return false;
       }
     }

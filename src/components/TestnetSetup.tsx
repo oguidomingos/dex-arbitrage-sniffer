@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { validateTestnetSetup, getTestTokens } from "@/lib/testnet";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 export const TestnetSetup = () => {
   const [isValidating, setIsValidating] = useState(false);
@@ -15,6 +16,7 @@ export const TestnetSetup = () => {
       }
     } catch (error) {
       console.error("Erro na configuração da testnet:", error);
+      toast.error("Erro ao configurar testnet. Tente novamente.");
     } finally {
       setIsValidating(false);
     }
@@ -29,9 +31,16 @@ export const TestnetSetup = () => {
       <Button
         onClick={handleTestnetSetup}
         disabled={isValidating}
-        className="w-full bg-polygon-purple hover:bg-polygon-purple/90"
+        className="w-full bg-polygon-purple hover:bg-polygon-purple/90 relative"
       >
-        {isValidating ? "Validando..." : "Configurar Testnet"}
+        {isValidating ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Validando...
+          </>
+        ) : (
+          "Configurar Testnet"
+        )}
       </Button>
       <div className="text-xs text-muted-foreground">
         <p>Requisitos:</p>
