@@ -1,8 +1,10 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowRightLeft, Wallet, RefreshCcw, PiggyBank, TrendingUp, ExternalLink } from "lucide-react";
+import { ArrowRightLeft, Wallet, RefreshCcw, PiggyBank, TrendingUp, AlertCircle } from "lucide-react";
 import { TransactionHistory } from "./TransactionHistory";
 import { toast } from "sonner";
+import { ethers } from "ethers";
+import { useState, useEffect } from "react";
 
 interface ArbitrageDisplayProps {
   tokenA: string;
@@ -45,10 +47,46 @@ export const ArbitrageDisplay = ({
   onWithdraw,
   simulationResult
 }: ArbitrageDisplayProps) => {
+  const [maticBalance, setMaticBalance] = useState<string | null>(null);
   const isOpportunityProfitable = simulationResult && estimatedProfit && estimatedProfit > 0;
+
+  useEffect(() => {
+    const checkMaticBalance = async () => {
+      if (window.ethereum) {
+        try {
+          const provider = new ethers.BrowserProvider(window.ethereum);
+          const accounts = await provider.send("eth_accounts", []);
+          if (accounts.length > 0) {
+            const balance = await provider.getBalance(accounts[0]);
+            setMaticBalance(ethers.formatEther(balance));
+          }
+        } catch (error) {
+          console.error("Error checking MATIC balance:", error);
+        }
+      }
+    };
+
+    checkMaticBalance();
+    const interval = setInterval(checkMaticBalance, 10000); // Check every 10 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   const openPolygonScan = (txHash: string) => {
     window.open(`https://polygonscan.com/tx/${txHash}`, '_blank');
+  };
+
+  const checkRequirements = () => {
+    if (!window.ethereum) {
+      toast.error("MetaMask não está instalada");
+      return false;
+    }
+
+    if (!maticBalance || parseFloat(maticBalance) < 0.1) {
+      toast.error("Saldo de MATIC insuficiente para gas fees (mínimo 0.1 MATIC)");
+      return false;
+    }
+
+    return true;
   };
 
   return (
@@ -73,8 +111,14 @@ export const ArbitrageDisplay = ({
             )}
           </div>
         </div>
-        <CardDescription>
-          Arbitragem automática entre pools (1x/min)
+        <CardDescription className="space-y-2">
+          <div>Arbitragem automática entre pools (1x/min)</div>
+          {maticBalance && (
+            <div className="flex items-center gap-2 text-sm">
+              <AlertCircle className="h-4 w-4 text-muted-foreground" />
+              <span>Saldo MATIC: {parseFloat(maticBalance).toFixed(4)} MATIC</span>
+            </div>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -89,7 +133,11 @@ export const ArbitrageDisplay = ({
       </CardContent>
       <CardFooter className="flex gap-2">
         <Button 
-          onClick={onSimulate}
+          onClick={() => {
+            if (checkRequirements()) {
+              onSimulate();
+            }
+          }}
           disabled={isSimulating || isPaused}
           className="flex-1 bg-polygon-purple hover:bg-polygon-purple/90 transition-colors"
         >
@@ -97,7 +145,11 @@ export const ArbitrageDisplay = ({
           {isSimulating ? "Simulando..." : "Simular"}
         </Button>
         <Button 
-          onClick={onWithdraw}
+          onClick={() => {
+            if (checkRequirements()) {
+              onWithdraw();
+            }
+          }}
           className="flex-1 bg-green-600 hover:bg-green-700 transition-colors"
         >
           <PiggyBank className="h-4 w-4 mr-2" />

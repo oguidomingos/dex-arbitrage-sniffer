@@ -8,15 +8,17 @@ interface TransactionHistoryProps {
     id: string;
     timestamp: number;
     type: 'execute' | 'withdraw' | 'simulation';
-    status: 'success' | 'failed';
+    status: 'success' | 'failed' | 'pending';
     amount?: string;
     error?: string;
     profitEstimate?: number;
+    txHash?: string;
   }>;
   prices: any;
   tokenA: string;
   tokenB: string;
   showLogs?: boolean;
+  onTxClick?: (txHash: string) => void;
 }
 
 export const TransactionHistory = ({
@@ -25,6 +27,7 @@ export const TransactionHistory = ({
   tokenA,
   tokenB,
   showLogs = true,
+  onTxClick
 }: TransactionHistoryProps) => {
   return (
     <Card className="w-full bg-[#1A1F2C] border-2 border-polygon-purple/20">
@@ -32,7 +35,7 @@ export const TransactionHistory = ({
         <CardTitle className="text-lg font-medium">Histórico de Transações</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <TransactionList transactions={transactions} />
+        <TransactionList transactions={transactions} onTxClick={onTxClick} />
         {showLogs && <LogDisplay />}
         {prices[tokenA]?.length > 0 && (
           <div className="space-y-2">
