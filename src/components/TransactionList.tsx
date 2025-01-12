@@ -1,21 +1,23 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Check, X, TrendingUp, ArrowRightLeft, PiggyBank } from "lucide-react";
+import { Check, X, TrendingUp, ArrowRightLeft, PiggyBank, Loader2 } from "lucide-react";
 
 interface Transaction {
   id: string;
   timestamp: number;
   type: 'execute' | 'withdraw' | 'simulation';
-  status: 'success' | 'failed';
+  status: 'success' | 'failed' | 'pending';
   amount?: string;
   error?: string;
   profitEstimate?: number;
+  txHash?: string;
 }
 
 interface TransactionListProps {
   transactions: Transaction[];
+  onTxClick?: (txHash: string) => void;
 }
 
-export const TransactionList = ({ transactions }: TransactionListProps) => {
+export const TransactionList = ({ transactions, onTxClick }: TransactionListProps) => {
   const getIcon = (type: Transaction['type']) => {
     switch (type) {
       case 'execute':
@@ -24,6 +26,17 @@ export const TransactionList = ({ transactions }: TransactionListProps) => {
         return <PiggyBank className="h-4 w-4 text-green-500" />;
       case 'simulation':
         return <TrendingUp className="h-4 w-4 text-blue-500" />;
+    }
+  };
+
+  const getStatusIcon = (status: Transaction['status']) => {
+    switch (status) {
+      case 'success':
+        return <Check className="h-4 w-4 text-green-500" />;
+      case 'failed':
+        return <X className="h-4 w-4 text-red-500" />;
+      case 'pending':
+        return <Loader2 className="h-4 w-4 text-yellow-500 animate-spin" />;
     }
   };
 
@@ -50,13 +63,12 @@ export const TransactionList = ({ transactions }: TransactionListProps) => {
             <div 
               key={tx.id} 
               className="flex items-center justify-between p-2 rounded-lg bg-black/20"
+              onClick={() => tx.txHash && onTxClick?.(tx.txHash)}
+              role={tx.txHash ? "button" : undefined}
+              style={{ cursor: tx.txHash ? 'pointer' : 'default' }}
             >
               <div className="flex items-center gap-2">
-                {tx.status === 'success' ? (
-                  <Check className="h-4 w-4 text-green-500" />
-                ) : (
-                  <X className="h-4 w-4 text-red-500" />
-                )}
+                {getStatusIcon(tx.status)}
                 <div className="flex items-center gap-2">
                   {getIcon(tx.type)}
                   <div>
@@ -83,6 +95,11 @@ export const TransactionList = ({ transactions }: TransactionListProps) => {
                 {tx.error && (
                   <p className="text-xs text-red-400">
                     {tx.error}
+                  </p>
+                )}
+                {tx.txHash && (
+                  <p className="text-xs text-blue-400 hover:underline">
+                    Ver transação
                   </p>
                 )}
               </div>

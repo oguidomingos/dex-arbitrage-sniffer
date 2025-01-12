@@ -39,6 +39,12 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
   const [gasEstimate, setGasEstimate] = useState<string | null>(null);
   const prices = useTokenPrices([tokenA, tokenB]);
 
+  const isOpportunityProfitable = (result: any): boolean => {
+    if (!result || !result.expectedProfit) return false;
+    const minProfitThreshold = 0.01; // 0.01 USDC minimum profit
+    return result.expectedProfit > minProfitThreshold;
+  };
+
   const addTransaction = (
     type: 'execute' | 'withdraw' | 'simulation',
     status: 'success' | 'failed' | 'pending',
@@ -142,7 +148,6 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       }
       
       try {
-        // Validação dos parâmetros
         const validationError = validateArbitrageParameters(tokenA, tokenB, dexA, dexB);
         if (validationError) {
           console.error("Validation error:", validationError);
@@ -153,7 +158,6 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
         setSimulationResult(result);
         setEstimatedProfit(result.expectedProfit);
         
-        // Estima o custo do gas
         if (window.ethereum) {
           const provider = new ethers.BrowserProvider(window.ethereum);
           const gasPrice = await provider.getFeeData();
