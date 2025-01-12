@@ -171,6 +171,7 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
         tokenB={tokenB}
         dexA={dexA}
         dexB={dexB}
+        profit={profit}
         isPaused={isPaused}
         transactions={transactions}
         prices={prices}
