@@ -15,8 +15,7 @@ export const simulateFlashloan = async (
     const profitPercentage = (Math.random() * 0.008) + 0.002; // 0.2-1% lucro aleatório
     
     const amountWithFlashloan = initialAmount + flashloanAmount;
-    const swapAmount = amountWithFlashloan * (1 + (Math.random() * 0.1 - 0.05)); // Simula variação na quantidade após swap
-    const expectedFinalAmount = swapAmount * (1 + profitPercentage);
+    const expectedFinalAmount = amountWithFlashloan * (1 + profitPercentage);
     const afterSlippage = expectedFinalAmount * (1 - slippage) * (1 - slippage);
     const flashloanFee = flashloanAmount * 0.0009;
     const finalAmount = afterSlippage - flashloanAmount - flashloanFee;
@@ -25,7 +24,6 @@ export const simulateFlashloan = async (
     return {
       initialAmount,
       flashloanAmount,
-      swapAmount,
       expectedProfit: profit,
       dexRoute: [dexA, dexB]
     };
@@ -38,7 +36,6 @@ export const simulateFlashloan = async (
 interface SimulationResult {
   initialAmount: number;
   flashloanAmount: number;
-  swapAmount: number;
   expectedProfit: number;
   dexRoute: string[];
 }
