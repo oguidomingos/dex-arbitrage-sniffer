@@ -215,12 +215,6 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       toast.error("Scanner está pausado");
       return;
     }
-
-    const balance = await checkContractBalance();
-    if (parseFloat(balance) < 0.1) {
-      toast.error("Saldo do contrato insuficiente. Mínimo necessário: 0.1 MATIC");
-      return;
-    }
     
     try {
       isProcessingRef.current = true;
