@@ -24,16 +24,30 @@ export const connectWallet = async () => {
   }
 };
 
-// Simula variações de preço para demonstração
+// Preços base atualizados para refletir valores mais realistas
 const basePrice: { [key: string]: number } = {
-  'MATIC': 1.5,
+  'MATIC': 0.85,
   'USDC': 1.0,
-  'WETH': 3000,
+  'WETH': 2500,
   'USDT': 1.0,
 };
 
+// Cache para armazenar o último preço gerado para cada token
+const lastPrices: { [key: string]: number } = {};
+
 export const getTokenPrice = async (tokenAddress: string) => {
-  const base = basePrice[tokenAddress] || 1.0;
-  const variation = (Math.random() - 0.5) * 0.02; // Variação de ±1%
-  return base * (1 + variation);
+  if (!lastPrices[tokenAddress]) {
+    lastPrices[tokenAddress] = basePrice[tokenAddress] || 1.0;
+  }
+
+  // Gera uma variação mais significativa (±2%)
+  const variation = (Math.random() - 0.5) * 0.04;
+  
+  // Atualiza o último preço com a variação
+  lastPrices[tokenAddress] = lastPrices[tokenAddress] * (1 + variation);
+  
+  // Adiciona um pequeno atraso aleatório para simular latência da API
+  await new Promise(resolve => setTimeout(resolve, Math.random() * 100));
+  
+  return lastPrices[tokenAddress];
 };

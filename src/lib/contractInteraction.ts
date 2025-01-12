@@ -33,7 +33,7 @@ const approveToken = async (
       console.log('Aprovando token com aprovação infinita...');
       const approveTx = await tokenContract.approve(
         spenderAddress,
-        ethers.MaxUint256, // Aprovação infinita
+        ethers.MaxUint256,
         {
           gasLimit: 100000n,
           maxFeePerGas: ethers.parseUnits('500', 'gwei'),
@@ -58,6 +58,11 @@ export const executeArbitrage = async (
   signer: ethers.Signer
 ) => {
   try {
+    // Verifica se os tokens são diferentes
+    if (tokenA === tokenB) {
+      throw new Error("Tokens de arbitragem devem ser diferentes");
+    }
+
     const tokenAAddress = tokenA === 'USDC' ? USDC_ADDRESS : WETH_ADDRESS;
     const tokenBAddress = tokenB === 'USDC' ? USDC_ADDRESS : WETH_ADDRESS;
 
@@ -91,7 +96,7 @@ export const executeArbitrage = async (
       tokenBAddress,
       { 
         gasLimit: 5000000n,
-        maxFeePerGas: ethers.parseUnits('50', 'gwei'),
+        maxFeePerGas: ethers.parseUnits('500', 'gwei'),
         maxPriorityFeePerGas: ethers.parseUnits('2', 'gwei')
       }
     );
@@ -101,7 +106,11 @@ export const executeArbitrage = async (
     return true;
   } catch (error) {
     console.error("Erro ao executar arbitragem:", error);
-    toast.error("Erro ao executar arbitragem. Verifique o console para mais detalhes.");
+    if (error instanceof Error) {
+      toast.error(`Erro ao executar arbitragem: ${error.message}`);
+    } else {
+      toast.error("Erro ao executar arbitragem. Verifique o console para mais detalhes.");
+    }
     return false;
   }
 };
@@ -125,7 +134,7 @@ export const withdrawProfit = async (
 
     const tx = await contract.withdraw(tokenAddress, { 
       gasLimit: 500000n,
-      maxFeePerGas: ethers.parseUnits('50', 'gwei'),
+      maxFeePerGas: ethers.parseUnits('500', 'gwei'),
       maxPriorityFeePerGas: ethers.parseUnits('2', 'gwei')
     });
     
