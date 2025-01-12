@@ -6,11 +6,25 @@ import { toast } from "sonner";
 import { Pause, Play } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
+import { OperationsHistory } from "@/components/operations/OperationsHistory";
+
+export type SimulationRecord = {
+  id: string;
+  timestamp: number;
+  tokenA: string;
+  tokenB: string;
+  dexA: string;
+  dexB: string;
+  expectedProfit: number;
+  status: 'success' | 'failed';
+  error?: string;
+};
 
 const Index = () => {
   const [connected, setConnected] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [activeSection, setActiveSection] = useState("opportunities");
+  const [simulationHistory, setSimulationHistory] = useState<SimulationRecord[]>([]);
   const [opportunities] = useState([
     {
       tokenA: "MATIC",
@@ -41,6 +55,10 @@ const Index = () => {
     toast.success(isPaused ? "Scanner retomado" : "Scanner pausado");
   };
 
+  const handleSimulationComplete = (simulation: SimulationRecord) => {
+    setSimulationHistory(prev => [simulation, ...prev]);
+  };
+
   useEffect(() => {
     const checkConnection = async () => {
       if (window.ethereum) {
@@ -57,7 +75,6 @@ const Index = () => {
     };
     checkConnection();
 
-    // Handle hash changes for navigation
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1) || "opportunities";
       setActiveSection(hash);
@@ -116,29 +133,29 @@ const Index = () => {
             {activeSection === "opportunities" && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {opportunities.map((opp, index) => (
-                  <ArbitrageCard key={index} {...opp} isPaused={isPaused} />
+                  <ArbitrageCard 
+                    key={index} 
+                    {...opp} 
+                    isPaused={isPaused}
+                    onSimulationComplete={handleSimulationComplete}
+                  />
                 ))}
               </div>
             )}
 
             {activeSection === "operations" && (
-              <div className="bg-black/20 p-6 rounded-lg">
-                <h2 className="text-xl font-semibold mb-4">Operações em Andamento</h2>
-                {/* Operations content will be implemented later */}
-              </div>
+              <OperationsHistory simulations={simulationHistory} />
             )}
 
             {activeSection === "profits" && (
               <div className="bg-black/20 p-6 rounded-lg">
                 <h2 className="text-xl font-semibold mb-4">Histórico de Lucros</h2>
-                {/* Profits content will be implemented later */}
               </div>
             )}
 
             {activeSection === "settings" && (
               <div className="bg-black/20 p-6 rounded-lg">
                 <h2 className="text-xl font-semibold mb-4">Configurações</h2>
-                {/* Settings content will be implemented later */}
               </div>
             )}
           </div>

@@ -16,6 +16,7 @@ interface ArbitrageCardProps {
   dexA: string;
   dexB: string;
   isPaused: boolean;
+  onSimulationComplete?: (simulation: SimulationRecord) => void;
 }
 
 interface Transaction {
@@ -36,7 +37,15 @@ const POL_ABI = [
   "function decimals() view returns (uint8)"
 ];
 
-export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: ArbitrageCardProps) => {
+export const ArbitrageCard = ({ 
+  tokenA, 
+  tokenB, 
+  profit, 
+  dexA, 
+  dexB, 
+  isPaused,
+  onSimulationComplete 
+}: ArbitrageCardProps) => {
   const [isSimulating, setIsSimulating] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
   const [simulationResult, setSimulationResult] = useState<any>(null);
@@ -273,12 +282,41 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       setShowSimulationDialog(true);
       
       await handleSimulationResult(result);
+
+      // Registrar a simulação no histórico
+      if (onSimulationComplete) {
+        onSimulationComplete({
+          id: Math.random().toString(36).substr(2, 9),
+          timestamp: Date.now(),
+          tokenA,
+          tokenB,
+          dexA,
+          dexB,
+          expectedProfit: result.expectedProfit || 0,
+          status: result.expectedProfit > 0 ? 'success' : 'failed'
+        });
+      }
     } catch (error) {
       console.error("Erro na simulação:", error);
       addTransaction('simulation', 'failed', undefined, undefined, error instanceof Error ? error.message : 'Erro desconhecido');
       toast.error("Erro ao simular operação", {
         description: error instanceof Error ? error.message : 'Erro desconhecido'
       });
+
+      // Registrar a simulação com erro
+      if (onSimulationComplete) {
+        onSimulationComplete({
+          id: Math.random().toString(36).substr(2, 9),
+          timestamp: Date.now(),
+          tokenA,
+          tokenB,
+          dexA,
+          dexB,
+          expectedProfit: 0,
+          status: 'failed',
+          error: error instanceof Error ? error.message : 'Erro desconhecido'
+        });
+      }
     } finally {
       setIsSimulating(false);
       isProcessingRef.current = false;
