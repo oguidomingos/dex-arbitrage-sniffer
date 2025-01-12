@@ -70,13 +70,13 @@ export const ArbitrageDisplay = ({
           const balance = await provider.getBalance(accounts[0]);
           setWalletBalance(ethers.formatEther(balance));
           
-          // Get current gas price
-          const gasPrice = await provider.getGasPrice();
-          const gasPriceInGwei = ethers.formatUnits(gasPrice, "gwei");
+          // Get current gas price using getFeeData()
+          const feeData = await provider.getFeeData();
+          const gasPriceInGwei = ethers.formatUnits(feeData.gasPrice || 0n, "gwei");
           setGasPriceGwei(parseFloat(gasPriceInGwei).toFixed(2));
           
           // Estimate gas cost for the operation (assuming 250k gas limit)
-          const estimatedGas = gasPrice * BigInt(250000);
+          const estimatedGas = (feeData.gasPrice || 0n) * BigInt(250000);
           setEstimatedGasCost(ethers.formatEther(estimatedGas));
         }
       } catch (error) {

@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Check, X, TrendingUp } from "lucide-react";
-import type { SimulationRecord } from "@/pages/Index";
+import type { SimulationRecord } from "@/types/simulation";
 
 interface OperationsHistoryProps {
   simulations: SimulationRecord[];
