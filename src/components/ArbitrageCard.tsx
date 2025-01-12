@@ -151,7 +151,9 @@ export const ArbitrageCard = ({ tokenA, tokenB, profit, dexA, dexB, isPaused }: 
       addTransaction('execute', 'failed', undefined, error instanceof Error ? error.message : 'Erro desconhecido');
       toast.error("Erro ao executar arbitragem");
     } finally {
-      setIsExecuting(false); // Always reset execution state
+      setIsExecuting(false);
+      setShowSimulationDialog(false);
+      setShowOpportunityDialog(false);
     }
   };
 
