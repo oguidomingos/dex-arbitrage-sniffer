@@ -6,6 +6,7 @@ import { TransactionHistory } from "./TransactionHistory";
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import { toast } from "sonner";
+import { PriceChart } from "./PriceChart";
 
 const POL_TOKEN_ADDRESS = "0x455E53CBB86018Ac2B8092FdCd39d8444aFFC3F6";
 const POL_ABI = [
@@ -49,11 +50,13 @@ export const ArbitrageDisplay = ({
   prices,
   estimatedProfit,
   isSimulating,
+  isExecuting,
   onSimulate,
   onWithdraw,
   simulationResult
 }: ArbitrageDisplayProps) => {
   const [polBalance, setPolBalance] = useState<string | null>(null);
+  const [selectedView, setSelectedView] = useState<'metrics' | 'chart' | 'history'>('metrics');
 
   const checkPolBalance = async () => {
     if (window.ethereum) {
@@ -129,29 +132,75 @@ export const ArbitrageDisplay = ({
           polBalance={polBalance}
         />
         <CardContent className="space-y-4">
-          <ArbitrageMetrics
-            tokenA={tokenA}
-            tokenB={tokenB}
-            dexA={dexA}
-            dexB={dexB}
-            priceA={priceA}
-            priceB={priceB}
-            priceDiff={priceDiff}
-            percentDiff={percentDiff}
-            flashloanAmount={flashloanAmount}
-            flashloanFee={flashloanFee}
-            gasCost={gasCost}
-            expectedProfit={calculatedProfit}
-            isLoading={isSimulating}
-          />
-          <TransactionHistory 
-            transactions={transactions}
-            prices={prices}
-            tokenA={tokenA}
-            tokenB={tokenB}
-            showLogs={false}
-            onTxClick={(txHash) => window.open(`https://polygonscan.com/tx/${txHash}`, '_blank')}
-          />
+          <div className="flex gap-2 mb-4">
+            <Button
+              variant={selectedView === 'metrics' ? 'default' : 'outline'}
+              onClick={() => setSelectedView('metrics')}
+              className="flex-1"
+            >
+              Métricas
+            </Button>
+            <Button
+              variant={selectedView === 'chart' ? 'default' : 'outline'}
+              onClick={() => setSelectedView('chart')}
+              className="flex-1"
+            >
+              Gráficos
+            </Button>
+            <Button
+              variant={selectedView === 'history' ? 'default' : 'outline'}
+              onClick={() => setSelectedView('history')}
+              className="flex-1"
+            >
+              Histórico
+            </Button>
+          </div>
+
+          {selectedView === 'metrics' && (
+            <ArbitrageMetrics
+              tokenA={tokenA}
+              tokenB={tokenB}
+              dexA={dexA}
+              dexB={dexB}
+              priceA={priceA}
+              priceB={priceB}
+              priceDiff={priceDiff}
+              percentDiff={percentDiff}
+              flashloanAmount={flashloanAmount}
+              flashloanFee={flashloanFee}
+              gasCost={gasCost}
+              expectedProfit={calculatedProfit}
+              isLoading={isSimulating}
+            />
+          )}
+
+          {selectedView === 'chart' && (
+            <div className="space-y-4">
+              {prices[tokenA]?.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-2">{tokenA} Price</h3>
+                  <PriceChart data={prices[tokenA]} token={tokenA} />
+                </div>
+              )}
+              {prices[tokenB]?.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-2">{tokenB} Price</h3>
+                  <PriceChart data={prices[tokenB]} token={tokenB} />
+                </div>
+              )}
+            </div>
+          )}
+
+          {selectedView === 'history' && (
+            <TransactionHistory 
+              transactions={transactions}
+              prices={prices}
+              tokenA={tokenA}
+              tokenB={tokenB}
+              showLogs={false}
+              onTxClick={(txHash) => window.open(`https://polygonscan.com/tx/${txHash}`, '_blank')}
+            />
+          )}
         </CardContent>
         <ArbitrageActions
           isSimulating={isSimulating}

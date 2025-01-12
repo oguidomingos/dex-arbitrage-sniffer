@@ -1,13 +1,16 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ArbitrageCard } from "@/components/ArbitrageCard";
-import { connectWallet, getProvider } from "@/lib/web3";
+import { connectWallet } from "@/lib/web3";
 import { toast } from "sonner";
 import { Pause, Play } from "lucide-react";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/layout/AppSidebar";
 
 const Index = () => {
   const [connected, setConnected] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [activeSection, setActiveSection] = useState("opportunities");
   const [opportunities] = useState([
     {
       tokenA: "MATIC",
@@ -53,48 +56,95 @@ const Index = () => {
       }
     };
     checkConnection();
+
+    // Handle hash changes for navigation
+    const handleHashChange = () => {
+      const hash = window.location.hash.slice(1) || "opportunities";
+      setActiveSection(hash);
+    };
+
+    window.addEventListener("hashchange", handleHashChange);
+    handleHashChange();
+
+    return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#1A1F2C] bg-gradient-to-b from-[#221F26] to-[#1A1F2C]">
-      <div className="container py-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-polygon-purple">Polygon Arbitrage Scanner</h1>
-          <div className="flex gap-4">
-            <Button
-              onClick={togglePause}
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              {isPaused ? (
-                <>
-                  <Play className="w-4 h-4" />
-                  Retomar
-                </>
-              ) : (
-                <>
-                  <Pause className="w-4 h-4" />
-                  Pausar
-                </>
-              )}
-            </Button>
-            <Button
-              onClick={handleConnect}
-              variant={connected ? "secondary" : "default"}
-              className="bg-polygon-purple hover:bg-polygon-purple/90 text-white"
-            >
-              {connected ? "Conectado" : "Conectar Carteira"}
-            </Button>
-          </div>
-        </div>
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-[#1A1F2C] bg-gradient-to-b from-[#221F26] to-[#1A1F2C]">
+        <AppSidebar />
+        <main className="flex-1 p-8">
+          <div className="container">
+            <div className="flex justify-between items-center mb-8">
+              <div className="flex items-center gap-4">
+                <SidebarTrigger />
+                <h1 className="text-3xl font-bold text-polygon-purple">
+                  {activeSection === "opportunities" && "Oportunidades de Arbitragem"}
+                  {activeSection === "operations" && "Operações em Andamento"}
+                  {activeSection === "profits" && "Histórico de Lucros"}
+                  {activeSection === "settings" && "Configurações"}
+                </h1>
+              </div>
+              <div className="flex gap-4">
+                <Button
+                  onClick={togglePause}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  {isPaused ? (
+                    <>
+                      <Play className="w-4 h-4" />
+                      Retomar
+                    </>
+                  ) : (
+                    <>
+                      <Pause className="w-4 h-4" />
+                      Pausar
+                    </>
+                  )}
+                </Button>
+                <Button
+                  onClick={handleConnect}
+                  variant={connected ? "secondary" : "default"}
+                  className="bg-polygon-purple hover:bg-polygon-purple/90 text-white"
+                >
+                  {connected ? "Conectado" : "Conectar Carteira"}
+                </Button>
+              </div>
+            </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {opportunities.map((opp, index) => (
-            <ArbitrageCard key={index} {...opp} isPaused={isPaused} />
-          ))}
-        </div>
+            {activeSection === "opportunities" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {opportunities.map((opp, index) => (
+                  <ArbitrageCard key={index} {...opp} isPaused={isPaused} />
+                ))}
+              </div>
+            )}
+
+            {activeSection === "operations" && (
+              <div className="bg-black/20 p-6 rounded-lg">
+                <h2 className="text-xl font-semibold mb-4">Operações em Andamento</h2>
+                {/* Operations content will be implemented later */}
+              </div>
+            )}
+
+            {activeSection === "profits" && (
+              <div className="bg-black/20 p-6 rounded-lg">
+                <h2 className="text-xl font-semibold mb-4">Histórico de Lucros</h2>
+                {/* Profits content will be implemented later */}
+              </div>
+            )}
+
+            {activeSection === "settings" && (
+              <div className="bg-black/20 p-6 rounded-lg">
+                <h2 className="text-xl font-semibold mb-4">Configurações</h2>
+                {/* Settings content will be implemented later */}
+              </div>
+            )}
+          </div>
+        </main>
       </div>
-    </div>
+    </SidebarProvider>
   );
 };
 
