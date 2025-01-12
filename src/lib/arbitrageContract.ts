@@ -55,7 +55,8 @@ const checkAndApproveToken = async (
   amount: bigint
 ): Promise<boolean> => {
   try {
-    if (tokenAddress === MATIC_ADDRESS) return true; // MATIC nativo não precisa de aprovação
+    // MATIC nativo não precisa de aprovação
+    if (tokenAddress === MATIC_ADDRESS) return true;
     
     const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
     const signerAddress = await signer.getAddress();
@@ -76,7 +77,7 @@ const checkAndApproveToken = async (
     console.log('Solicitando aprovação para:', amount.toString());
     const approveTx = await tokenContract.approve(
       ARBITRAGE_CONTRACT_ADDRESS,
-      ethers.MaxUint256, // Aprova o máximo possível para evitar futuras aprovações
+      ethers.MaxUint256,
       {
         gasLimit: 100000n,
         maxFeePerGas: ethers.parseUnits('50', 'gwei'),
@@ -89,7 +90,6 @@ const checkAndApproveToken = async (
     return true;
   } catch (error) {
     console.error('Erro ao aprovar token:', error);
-    toast.error('Erro ao aprovar token. Por favor, tente novamente.');
     return false;
   }
 };
@@ -110,15 +110,22 @@ export const executeRealArbitrage = async (
     const tokenAAddress = getTokenAddress(tokenA);
     const tokenBAddress = getTokenAddress(tokenB);
     
-    // Usa WETH como token do flashloan se disponível, senão usa o tokenA
-    const flashloanToken = tokenA === 'WETH' ? WETH_ADDRESS : tokenAAddress;
+    // Sempre usa WETH para flashloan quando ele está envolvido na operação
+    const flashloanToken = tokenA === 'WETH' || tokenB === 'WETH' ? WETH_ADDRESS : tokenAAddress;
     const decimals = await getTokenDecimals(flashloanToken, signer);
     const amountInWei = ethers.parseUnits(amount, decimals);
     
-    // Verifica e aprova os tokens necessários
-    const approvalNeeded = [flashloanToken, tokenAAddress, tokenBAddress].filter(
-      (address) => address !== MATIC_ADDRESS // Remove MATIC da lista pois não precisa de aprovação
+    // Verifica e aprova apenas os tokens ERC20 necessários
+    const approvalNeeded = [tokenAAddress, tokenBAddress].filter(
+      (address) => address !== MATIC_ADDRESS && address !== flashloanToken
     );
+    
+    // Adiciona o flashloanToken à lista se não for MATIC
+    if (flashloanToken !== MATIC_ADDRESS) {
+      approvalNeeded.push(flashloanToken);
+    }
+    
+    console.log('Tokens que precisam de aprovação:', approvalNeeded);
     
     for (const tokenAddress of approvalNeeded) {
       const approved = await checkAndApproveToken(tokenAddress, signer, amountInWei);
