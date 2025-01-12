@@ -8,21 +8,14 @@ import { Pause, Play } from "lucide-react";
 const Index = () => {
   const [connected, setConnected] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [opportunities, setOpportunities] = useState([
+  const [opportunities] = useState([
     {
       tokenA: "MATIC",
       tokenB: "USDC",
       profit: 0.5,
       dexA: "QuickSwap",
       dexB: "SushiSwap",
-    },
-    {
-      tokenA: "WETH",
-      tokenB: "USDT",
-      profit: 0.3,
-      dexA: "UniswapV3",
-      dexB: "QuickSwap",
-    },
+    }
   ]);
 
   const handleConnect = async () => {

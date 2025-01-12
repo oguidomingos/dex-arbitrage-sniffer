@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 
 // Endereços dos tokens na rede Polygon
 const USDC_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
-const WETH_ADDRESS = "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619";
+const MATIC_ADDRESS = "0x0000000000000000000000000000000000001010"; // Endereço nativo do MATIC
 
 // Endereço do contrato de arbitragem na Polygon
 const ARBITRAGE_CONTRACT_ADDRESS = "0xd6B6C965aAC635B626f8fcF75785645ed6cbbDB5";
@@ -35,9 +35,9 @@ const approveToken = async (
         spenderAddress,
         ethers.MaxUint256,
         {
-          gasLimit: 150000n, // Aumentado para garantir execução
-          maxFeePerGas: ethers.parseUnits('100', 'gwei'),
-          maxPriorityFeePerGas: ethers.parseUnits('2', 'gwei')
+          gasLimit: 100000n,
+          maxFeePerGas: ethers.parseUnits('50', 'gwei'),
+          maxPriorityFeePerGas: ethers.parseUnits('1.5', 'gwei')
         }
       );
       await approveTx.wait(1);
@@ -58,13 +58,12 @@ export const executeArbitrage = async (
   signer: ethers.Signer
 ) => {
   try {
-    // Verifica se os tokens são diferentes
-    if (tokenA === tokenB) {
-      throw new Error("Tokens de arbitragem devem ser diferentes");
+    if (tokenA !== 'MATIC' && tokenB !== 'USDC') {
+      throw new Error("Apenas pares MATIC/USDC são suportados");
     }
 
-    const tokenAAddress = tokenA === 'USDC' ? USDC_ADDRESS : WETH_ADDRESS;
-    const tokenBAddress = tokenB === 'USDC' ? USDC_ADDRESS : WETH_ADDRESS;
+    const tokenAAddress = MATIC_ADDRESS;
+    const tokenBAddress = USDC_ADDRESS;
 
     if (!ethers.isAddress(ARBITRAGE_CONTRACT_ADDRESS)) {
       throw new Error("Endereço do contrato inválido");
@@ -76,29 +75,26 @@ export const executeArbitrage = async (
       signer
     );
 
-    const decimals = tokenA === 'USDC' ? 6 : 18;
-    const amountInWei = ethers.parseUnits(amount, decimals);
-
-    // Aprova o token antes da operação
-    await approveToken(tokenAAddress, ARBITRAGE_CONTRACT_ADDRESS, amountInWei, signer);
+    // Usando 6 decimais para USDC
+    const amountInWei = ethers.parseUnits(amount, 6);
 
     console.log('Executing arbitrage with params:', {
       tokenAAddress,
       amountInWei: amountInWei.toString(),
       tokenBAddress,
-      decimals,
+      decimals: 6,
     });
 
-    // Reduzimos o gas limit e ajustamos as taxas
+    // Reduzimos ainda mais o gas limit e ajustamos as taxas para MATIC
     const tx = await contract.requestFlashLoan(
-      tokenAAddress,
+      tokenBAddress, // Usando USDC como token do flashloan
       amountInWei,
       tokenAAddress,
       tokenBAddress,
       { 
-        gasLimit: 300000n, // Reduzido para evitar erros de gas estimation
-        maxFeePerGas: ethers.parseUnits('100', 'gwei'),
-        maxPriorityFeePerGas: ethers.parseUnits('2', 'gwei')
+        gasLimit: 200000n,
+        maxFeePerGas: ethers.parseUnits('50', 'gwei'),
+        maxPriorityFeePerGas: ethers.parseUnits('1.5', 'gwei')
       }
     );
 
@@ -121,7 +117,7 @@ export const withdrawProfit = async (
   signer: ethers.Signer
 ) => {
   try {
-    const tokenAddress = token === 'USDC' ? USDC_ADDRESS : WETH_ADDRESS;
+    const tokenAddress = token === 'MATIC' ? MATIC_ADDRESS : USDC_ADDRESS;
     
     if (!ethers.isAddress(ARBITRAGE_CONTRACT_ADDRESS)) {
       throw new Error("Endereço do contrato inválido");
@@ -134,9 +130,9 @@ export const withdrawProfit = async (
     );
 
     const tx = await contract.withdraw(tokenAddress, { 
-      gasLimit: 200000n,
-      maxFeePerGas: ethers.parseUnits('100', 'gwei'),
-      maxPriorityFeePerGas: ethers.parseUnits('2', 'gwei')
+      gasLimit: 150000n,
+      maxFeePerGas: ethers.parseUnits('50', 'gwei'),
+      maxPriorityFeePerGas: ethers.parseUnits('1.5', 'gwei')
     });
     
     await tx.wait(1);
