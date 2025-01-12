@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { PriceMonitor } from '@/services/priceMonitor';
 import { ethers } from 'ethers';
 import { getTokenPrice } from '@/lib/web3';
 
@@ -15,9 +14,13 @@ interface TokenPrices {
 export const useTokenPrices = (tokens: string[]) => {
   const [prices, setPrices] = useState<TokenPrices>({});
   const [lastMinute, setLastMinute] = useState(() => Math.floor(Date.now() / 60000));
+  const [isLoading, setIsLoading] = useState(false);
 
   const fetchPrices = useCallback(async () => {
+    if (isLoading) return;
+    
     try {
+      setIsLoading(true);
       const currentMinute = Math.floor(Date.now() / 60000);
       
       if (currentMinute > lastMinute) {
@@ -28,12 +31,8 @@ export const useTokenPrices = (tokens: string[]) => {
             const price = await getTokenPrice(token);
             const timestamp = currentMinute * 60000;
             
-            if (!newPrices[token]) {
-              newPrices[token] = [];
-            }
-            
             newPrices[token] = [
-              ...newPrices[token].slice(-30),
+              ...(newPrices[token] || []).slice(-30),
               { timestamp, price }
             ];
             
@@ -48,25 +47,14 @@ export const useTokenPrices = (tokens: string[]) => {
       }
     } catch (error) {
       console.error('Error fetching token prices:', error);
+    } finally {
+      setIsLoading(false);
     }
-  }, [tokens, lastMinute, prices]);
+  }, [tokens, lastMinute, prices, isLoading]);
 
   useEffect(() => {
-    // Inicializa os preços imediatamente
-    const initializePrices = () => {
-      const initialPrices: TokenPrices = {};
-      tokens.forEach(token => {
-        initialPrices[token] = [];
-      });
-      setPrices(initialPrices);
-    };
-
-    initializePrices();
-    
-    // Configura o intervalo para atualização
     fetchPrices();
     const interval = setInterval(fetchPrices, 1000);
-    
     return () => clearInterval(interval);
   }, [fetchPrices]);
 

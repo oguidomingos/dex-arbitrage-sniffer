@@ -1,153 +1,18 @@
 import { ethers } from 'ethers';
-import { toast } from 'sonner';
-
-const RPC_PROVIDERS = [
-  'https://polygon-rpc.com',
-  'https://rpc-mainnet.matic.network',
-  'https://rpc-mainnet.maticvigil.com',
-  'https://polygon.llamarpc.com'
-];
+import { provider } from '@/lib/web3';
 
 const QUICKSWAP_ROUTER = "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff";
 const SUSHISWAP_ROUTER = "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506";
-const USDC_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
 
 const ROUTER_ABI = [
   "function getAmountsOut(uint amountIn, address[] memory path) view returns (uint[] memory amounts)"
 ];
-
-let currentProviderIndex = 0;
-let lastProviderSwitch = Date.now();
-const PROVIDER_SWITCH_COOLDOWN = 2000;
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 2000;
-
-const createProvider = (url: string) => {
-  return new ethers.JsonRpcProvider(url, {
-    chainId: 137,
-    name: 'polygon'
-  });
-};
-
-let providers = RPC_PROVIDERS.map(url => createProvider(url));
-let currentProvider: ethers.Provider = providers[0];
-
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-const getNextProvider = async () => {
-  const now = Date.now();
-  if (now - lastProviderSwitch < PROVIDER_SWITCH_COOLDOWN) {
-    await delay(PROVIDER_SWITCH_COOLDOWN - (now - lastProviderSwitch));
-  }
-
-  currentProviderIndex = (currentProviderIndex + 1) % providers.length;
-  lastProviderSwitch = Date.now();
-  currentProvider = providers[currentProviderIndex];
-  console.log(`Switching to RPC provider ${currentProviderIndex + 1}/${providers.length}`);
-  return currentProvider;
-};
-
-const isRateLimitError = (error: any): boolean => {
-  if (!error) return false;
-  
-  if (error.code && [429, -32005].includes(error.code)) return true;
-  
-  if (error.message && (
-    error.message.toLowerCase().includes('rate limit') ||
-    error.message.toLowerCase().includes('too many requests') ||
-    error.message.toLowerCase().includes('exceeded') ||
-    error.message.toLowerCase().includes('throttled')
-  )) return true;
-  
-  if (error.status === 429) return true;
-  
-  return false;
-};
-
-export const provider = new Proxy({} as ethers.Provider, {
-  get: (target, prop) => {
-    const provider = currentProvider;
-    const value = provider[prop as keyof ethers.Provider];
-    
-    if (typeof value === 'function') {
-      return async (...args: any[]) => {
-        let lastError;
-        
-        for (let retry = 0; retry < MAX_RETRIES; retry++) {
-          try {
-            const result = await value.apply(provider, args);
-            return result;
-          } catch (error: any) {
-            lastError = error;
-            console.error(`Provider error (attempt ${retry + 1}/${MAX_RETRIES}):`, error);
-            
-            if (isRateLimitError(error)) {
-              console.log('Rate limit hit, switching providers...');
-              currentProvider = await getNextProvider();
-              await delay(RETRY_DELAY);
-              continue;
-            }
-            
-            throw error;
-          }
-        }
-        
-        console.error('All providers failed:', lastError);
-        throw lastError;
-      };
-    }
-    return value;
-  }
-});
-
-export const connectWallet = async () => {
-  try {
-    if (!window.ethereum) {
-      toast.error('Por favor, instale a MetaMask');
-      return null;
-    }
-
-    await window.ethereum.request({ method: 'eth_requestAccounts' });
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    const signer = await provider.getSigner();
-    
-    // Verifica saldo de MATIC
-    const balance = await provider.getBalance(await signer.getAddress());
-    if (balance < ethers.parseEther("0.1")) {
-      toast.error('Saldo de MATIC insuficiente. Mínimo necessário: 0.1 MATIC');
-      return null;
-    }
-    
-    return signer;
-  } catch (error) {
-    console.error('Error connecting wallet:', error);
-    toast.error('Falha ao conectar carteira');
-    return null;
-  }
-};
-
-async function getPriceFromDEX(
-  routerAddress: string,
-  tokenAddress: string,
-  amount: bigint = ethers.parseEther("1")
-): Promise<number> {
-  try {
-    const router = new ethers.Contract(routerAddress, ROUTER_ABI, provider);
-    const path = [tokenAddress, USDC_ADDRESS];
-    const amounts = await router.getAmountsOut(amount, path);
-    return Number(ethers.formatUnits(amounts[1], 6));
-  } catch (error) {
-    console.error(`Error getting price from DEX:`, error);
-    throw error;
-  }
-}
 
 export const getTokenPrice = async (tokenAddress: string): Promise<number> => {
   try {
     const priceQuickswap = await getPriceFromDEX(QUICKSWAP_ROUTER, tokenAddress);
     const priceSushiswap = await getPriceFromDEX(SUSHISWAP_ROUTER, tokenAddress);
     
-    // Calcula a média dos preços
     const avgPrice = (priceQuickswap + priceSushiswap) / 2;
     
     console.log(`Preços obtidos para ${tokenAddress}:`, {
@@ -156,9 +21,76 @@ export const getTokenPrice = async (tokenAddress: string): Promise<number> => {
       average: avgPrice
     });
     
-    return avgPrice;
+    return avgPrice || 0;
   } catch (error) {
     console.error('Error fetching token prices:', error);
+    return 0;
+  }
+};
+
+export const getPriceFromDEX = async (
+  dexRouter: string,
+  tokenIn: string,
+  tokenOut: string,
+  amountIn: bigint
+): Promise<bigint> => {
+  try {
+    const path = [tokenIn, tokenOut];
+    const amounts = await dexRouter.getAmountsOut(amountIn, path);
+    return amounts[1];
+  } catch (error) {
+    console.error(`Error getting price from DEX:`, error);
     throw error;
   }
 };
+
+export class PriceMonitor {
+  private quickswapRouter: ethers.Contract;
+  private sushiswapRouter: ethers.Contract;
+
+  constructor() {
+    this.quickswapRouter = new ethers.Contract(QUICKSWAP_ROUTER, ROUTER_ABI, provider);
+    this.sushiswapRouter = new ethers.Contract(SUSHISWAP_ROUTER, ROUTER_ABI, provider);
+  }
+
+  async checkArbitrageProfitability(
+    tokenA: string,
+    tokenB: string,
+    amount: bigint
+  ): Promise<{
+    profitable: boolean;
+    expectedProfit: bigint;
+    route: string[];
+  }> {
+    const priceQuickswap = await this.getPriceFromDEX(
+      this.quickswapRouter,
+      tokenA,
+      tokenB,
+      amount
+    );
+
+    const priceSushiswap = await this.getPriceFromDEX(
+      this.sushiswapRouter,
+      tokenA,
+      tokenB,
+      amount
+    );
+
+    const profit = priceSushiswap > priceQuickswap 
+      ? priceSushiswap - priceQuickswap
+      : priceQuickswap - priceSushiswap;
+
+    const gasCost = ethers.parseEther("0.01");
+    const flashLoanFee = amount * BigInt(9) / BigInt(10000);
+
+    const netProfit = profit - gasCost - flashLoanFee;
+
+    return {
+      profitable: netProfit > 0n,
+      expectedProfit: netProfit,
+      route: priceSushiswap > priceQuickswap 
+        ? ["QuickSwap", "SushiSwap"]
+        : ["SushiSwap", "QuickSwap"]
+    };
+  }
+}
