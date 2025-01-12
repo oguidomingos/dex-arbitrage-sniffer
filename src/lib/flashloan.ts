@@ -12,9 +12,9 @@ export const simulateFlashloan = async (
   try {
     console.log('Iniciando simulação para:', { tokenA, tokenB, dexA, dexB });
     
-    // Obter preços reais das DEXs
-    const priceA = await getTokenPrice(tokenA, dexA);
-    const priceB = await getTokenPrice(tokenA, dexB);
+    // Obter preços reais das DEXs usando os endereços corretos
+    const priceA = await getTokenPrice(tokenA);
+    const priceB = await getTokenPrice(tokenB);
     
     console.log('Preços obtidos:', { priceA, priceB });
     

@@ -147,16 +147,18 @@ export const getTokenPrice = async (tokenAddress: string): Promise<number> => {
     const priceQuickswap = await getPriceFromDEX(QUICKSWAP_ROUTER, tokenAddress);
     const priceSushiswap = await getPriceFromDEX(SUSHISWAP_ROUTER, tokenAddress);
     
-    // Calcula a diferença percentual
-    const priceDiff = Math.abs(priceQuickswap - priceSushiswap);
+    // Calcula a média dos preços
     const avgPrice = (priceQuickswap + priceSushiswap) / 2;
-    const percentDiff = (priceDiff / avgPrice) * 100;
     
-    console.log(`Price difference for ${tokenAddress}: ${percentDiff.toFixed(2)}%`);
+    console.log(`Preços obtidos para ${tokenAddress}:`, {
+      quickswap: priceQuickswap,
+      sushiswap: priceSushiswap,
+      average: avgPrice
+    });
     
     return avgPrice;
   } catch (error) {
     console.error('Error fetching token prices:', error);
-    return 0;
+    throw error;
   }
 };
